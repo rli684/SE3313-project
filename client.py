@@ -97,7 +97,7 @@ class ChatRoomGUI(QMainWindow):
         server_port = 3000  # Change this to your server's port
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((server_address, server_port))
+            #client_socket.connect((server_address, server_port))
             print("Connected to the server.")
             # Close the main window
             self.close()
