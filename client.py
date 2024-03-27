@@ -1,5 +1,6 @@
 import sys
 import socket
+import threading
 from PyQt5.QtWidgets import QApplication, QMainWindow, QVBoxLayout, QWidget, QTextEdit, QPushButton, QLabel, QLineEdit, QHBoxLayout, QComboBox
 from PyQt5.QtGui import QIcon
 
@@ -92,18 +93,24 @@ class ChatRoomGUI(QMainWindow):
         password = self.password_field.text()  # Retrieve entered password
         room_name = selected_room_info.split(' - ')[0] 
         print(f"Connecting to: {selected_room_info} with password: {password}")
+        
          # Establish a socket connection to the server
         server_address = '127.0.0.1'  # Change this to your server's IP address
         server_port = 2200  # Change this to your server's port
+        
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
             client_socket.connect((server_address, server_port))
             print("Connected to the server.")
+            
             # Close the main window
             self.close()
 
             # Open the chat window
             self.open_chat_window(room_name,client_socket)
+            
+             # Start a new thread for message listening
+            threading.Thread(target=self.receive_messages, args=(client_socket,)).start()
             
         except Exception as e:
             print("Error connecting to the server:", e)
@@ -114,7 +121,17 @@ class ChatRoomGUI(QMainWindow):
         self.chat_window = ChatWindow(room_name, client_socket)
         self.chat_window.show()
 
-
+    def receive_messages(self, client_socket):
+        while True:
+            try:
+                message = client_socket.recv(1024).decode()  # Receive message from server
+                if message:  # Check if message is not empty
+                    print("Received message:", message)
+                    # Process the received message, update GUI, etc.
+            except Exception as e:
+                print("Error receiving message:", e)
+                break  # Break the loop if there's an error or connection is closed
+        
 class ChatWindow(QWidget):
     def __init__(self, room_name, client_socket):
         super().__init__()
