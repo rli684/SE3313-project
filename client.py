@@ -94,10 +94,10 @@ class ChatRoomGUI(QMainWindow):
         print(f"Connecting to: {selected_room_info} with password: {password}")
          # Establish a socket connection to the server
         server_address = '127.0.0.1'  # Change this to your server's IP address
-        server_port = 3000  # Change this to your server's port
+        server_port = 2200  # Change this to your server's port
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            #client_socket.connect((server_address, server_port))
+            client_socket.connect((server_address, server_port))
             print("Connected to the server.")
             # Close the main window
             self.close()
@@ -152,7 +152,7 @@ class ChatWindow(QWidget):
         message = self.text_input.text()
         # Placeholder for sending message to server
         print("Sending message:", message)
-        self.client_socket.send(message)
+        self.client_socket.send(message.encode())
         self.text_input.clear()
 
     def disconnect_from_room(self):

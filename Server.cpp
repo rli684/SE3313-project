@@ -108,7 +108,7 @@ public:
 int main(void)
 {
     cout << "I am a server." << endl;    // initial server message
-    SocketServer server(3000);           // creates server socket listening on port 3000
+    SocketServer server(22);           // creates server socket listening on port 3000
     ServerThread serverOpThread(server); // creates server operation thread
     FlexWait cinWaiter(1, stdin);        // waits for input to shutdown
     cinWaiter.Wait();                    // waits for any input
