@@ -129,7 +129,7 @@ class ChatRoomGUI(QMainWindow):
         print(f"Connecting to: {selected_room_info} with password: {password}")
          # Establish a socket connection to the server
         server_address = '127.0.0.1'  # CHANGE THIS TO YOUR SERVERS IP ADDRESS
-        server_port = 2200  # CHANGE THIS TO YOUR SERVERS PORT
+        server_port = 3000  # CHANGE THIS TO YOUR SERVERS PORT
         
         try:
             client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
