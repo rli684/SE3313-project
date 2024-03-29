@@ -197,7 +197,6 @@ class ChatRoomGUI(QMainWindow):
 
     def receive_messages(self):
         while self.running:
-            print("here")
             try:
                 message = self.client_socket.recv(1024).decode()  # Receive message from server
                 if message:  # Check if message is not empty
@@ -207,15 +206,6 @@ class ChatRoomGUI(QMainWindow):
                 print("Error receiving message:", e)
                 break  # Break the loop if there's an error or connection is closed
         
-    def closeEvent(self, event):
-        self.running = False
-        if self.client_socket:
-            try:
-                self.client_socket.send(b"DISCONNECT")
-                self.client_socket.close()
-            except:
-                pass
-        event.accept()
 
 
 class ChatWindow(QWidget):
@@ -261,10 +251,20 @@ class ChatWindow(QWidget):
 
     def disconnect_from_room(self):
         try:
-            self.close()
+            self.client_socket.send(b"DISCONNECT")
+            self.client_socket.close()
+            self.close();
         except Exception as e:
             print("Error disconnecting from room:", e)
-
+            
+    def closeEvent(self, event):
+        try:
+            if self.client_socket:
+                self.client_socket.close()
+        except Exception as e:
+            print("Error disconnecting from room:", e)
+        finally:
+            event.accept()
 
 def main():
     app = QApplication(sys.argv)
