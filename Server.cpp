@@ -5,9 +5,71 @@
 #include <list>
 #include <vector>
 #include <algorithm>
+#include <string>
 
 using namespace Sync;
 using namespace std;
+
+struct ChatRoom
+{
+    std::string name;
+    std::string password;
+    int current_users;
+    int max_users;
+    bool locked;
+};
+
+// Function to convert ChatRoom struct data into a byte array for sending over a socket
+std::vector<char> chatroomDataToByteArray(const ChatRoom &room)
+{
+    std::vector<char> data;
+    // Convert name to bytes and append to data
+    data.insert(data.end(), room.name.begin(), room.name.end());
+    data.push_back(';'); // Add delimiter
+
+    // Convert password to bytes and append to data if the room is locked
+    if (room.locked)
+    {
+        data.insert(data.end(), room.password.begin(), room.password.end());
+    }
+    data.push_back(';'); // Add delimiter
+
+    // Convert current_users to bytes and append to data
+    std::string current_users_str = std::to_string(room.current_users);
+    data.insert(data.end(), current_users_str.begin(), current_users_str.end());
+    data.push_back(';'); // Add delimiter
+
+    // Convert max_users to bytes and append to data
+    std::string max_users_str = std::to_string(room.max_users);
+    data.insert(data.end(), max_users_str.begin(), max_users_str.end());
+    data.push_back(';'); // Add delimiter
+
+    // Convert locked to bytes and append to data
+    data.push_back(room.locked ? '1' : '0');
+
+    return data;
+}
+
+// Function to loop through an array of ChatRoom structs and return the data in a byte array format
+std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoom> &rooms)
+{
+    std::vector<char> allData;
+    for (const auto &room : rooms)
+    {
+        std::vector<char> roomData = chatroomDataToByteArray(room);
+        allData.insert(allData.end(), roomData.begin(), roomData.end());
+        allData.push_back('\n'); // Add newline delimiter between room data
+    }
+    return allData;
+}
+
+std::vector<ChatRoom> room_data = {
+    {"Chris's room", "password1", 3, 4, true},
+    {"Elbert's room", "", 1, 5, false} // No password for unlocked room
+};
+
+// Get chatroom data as byte array
+std::vector<char> chatroomBytes = getAllChatroomDataAsByteArray(room_data);
 
 // this class manages individual client connections in separate threads
 class SocketThreadIndividually : public Thread
@@ -15,10 +77,11 @@ class SocketThreadIndividually : public Thread
 private:
     Socket &clientSocket;         // stores the client socket reference
     Sync::ByteArray incomingData; // buffer for incoming data
+    std::vector<char> &chatroomData;
 public:
     bool isActive = true; // flag to control the thread loop
-    SocketThreadIndividually(Socket &socket)
-        : clientSocket(socket)
+    SocketThreadIndividually(Socket &socket, std::vector<char> &chatroomData)
+        : clientSocket(socket), chatroomData(chatroomData)
     {
     }
 
@@ -53,6 +116,11 @@ public:
         }
         return 0;
     }
+
+    void SendChatroomData() {
+        Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
+        clientSocket.Write(chatroomByteArray);
+    }
 };
 
 // this thread handles the server operations, accepting connections and creating client threads
@@ -62,9 +130,10 @@ private:
     SocketServer &server;                             // server socket reference
     bool isActive = true;                             // flag to control the server loop
     vector<SocketThreadIndividually *> clientThreads; // stores client thread pointers
+    std::vector<char> &chatroomData;
 public:
-    ServerThread(SocketServer &server)
-        : server(server)
+    ServerThread(SocketServer &server, std::vector<char> &chatroomData)
+        : server(server), chatroomData(chatroomData)
     {
     }
 
@@ -88,9 +157,10 @@ public:
         {
             try
             {
-                Socket *newConnection = new Socket(server.Accept());              // accepts new client connection
-                Socket &socketRef = *newConnection;                               // gets reference to the new socket
-                clientThreads.push_back(new SocketThreadIndividually(socketRef)); // creates and stores new thread for client
+                Socket *newConnection = new Socket(server.Accept()); // accepts new client connection
+                Socket &socketRef = *newConnection;                  // gets reference to the new socket
+                clientThreads.push_back(new SocketThreadIndividually(socketRef, chatroomData)); // creates and stores new thread for client
+                clientThreads.back()->SendChatroomData(); // Send chatroom data to the new client
             }
             catch (TerminationException error)
             {
@@ -109,7 +179,7 @@ int main(void)
 {
     cout << "I am a server." << endl;    // initial server message
     SocketServer server(3000);           // creates server socket listening on port 3000
-    ServerThread serverOpThread(server); // creates server operation thread
+    ServerThread serverOpThread(server, chatroomBytes); // creates server operation thread
     FlexWait cinWaiter(1, stdin);        // waits for input to shutdown
     cinWaiter.Wait();                    // waits for any input
     cin.get();                           // gets the input (for shutdown)

@@ -9,8 +9,8 @@ class ChatRoomGUI(QMainWindow):
     # Initialization
     def __init__(self):
         super().__init__()
-        self.client_socket = self.connect_to_server()  # Initialize socket connection
         self.initUI()
+        self.client_socket = self.connect_to_server()  # Initialize socket connection
         self.running = True
         
     # GUI settings
@@ -79,6 +79,7 @@ class ChatRoomGUI(QMainWindow):
         self.available_rooms_label = QLabel("Available Chatrooms:")
         layout.addWidget(self.available_rooms_label)
         
+        
         # Combo box to select chatroom
         self.room_combo_box = QComboBox()
         layout.addWidget(self.room_combo_box)
@@ -96,9 +97,6 @@ class ChatRoomGUI(QMainWindow):
         self.connect_button.clicked.connect(self.connect_to_room)
         layout.addWidget(self.connect_button)
         
-        # Populate room information
-        self.populate_room_info()
-        
         # Connect signals
         self.room_combo_box.currentIndexChanged.connect(self.update_connect_button_state)
         
@@ -112,37 +110,45 @@ class ChatRoomGUI(QMainWindow):
             # Establish a socket connection to the server
             server_address = '127.0.0.1'  # CHANGE THIS TO YOUR SERVER'S IP ADDRESS
             server_port = 3000  # CHANGE THIS TO YOUR SERVER'S PORT
-            client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            client_socket.connect((server_address, server_port))
+            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket.connect((server_address, server_port))
             print("Connected to the server.")
-            return client_socket
+            room_data = self.client_socket.recv(1024).decode()
+            self.populate_room_info(room_data)
+            return self.client_socket
         except Exception as e:
             print("Error connecting to the server:", e)
             return None
         
     # Populate available rooms
-    def populate_room_info(self):
-        if self.client_socket:
-            try:
-                # Static room data
-                room_data = [
-                    {"name": "Chris's room", "current_users": 3, "max_users": 4, "locked": True},
-                    {"name": "Elbert's room", "current_users": 1, "max_users": 5, "locked": False}
-                ]
-                # Clear existing items from combo box
-                self.room_combo_box.clear()
+    def populate_room_info(self, room_data):
+        try:
+            self.room_combo_box.clear()
+            
+            room_data = room_data.splitlines()
+
+            # Add rooms to the combo box
+            for line in room_data:
+                # Split each line by the delimiter (e.g., comma)
+                room_info = line.split(';')
                 
-                # Add rooms to the combo box
-                for room in room_data:
-                    locked_status = "Locked" if room["locked"] else "Unlocked"
-                    room_info = f"{room['name']} - {locked_status}, {room['current_users']}/{room['max_users']} users"
-                    self.room_combo_box.addItem(room_info)
-                    
-                # Check initial room selection
-                initial_index = self.room_combo_box.currentIndex()
-                self.update_connect_button_state(initial_index)
-            except Exception as e:
-                print("Error fetching room information:", e)
+                # Extract values from the split line
+                name = room_info[0]
+                password = room_info[1]
+                current_users = int(room_info[2])
+                max_users = int(room_info[3])
+            
+                
+                # Add room information to the combo box
+                room_display = f"{name} - {'Locked' if password else 'Unlocked'}, {current_users}/{max_users} users"
+                self.room_combo_box.addItem(room_display)
+                
+            # Check initial room selection
+            initial_index = self.room_combo_box.currentIndex()
+            self.update_connect_button_state(initial_index)
+            
+        except Exception as e:
+            print("Error populating room information:", e)
         
     # Update connect button
     def update_connect_button_state(self, index):
@@ -253,7 +259,7 @@ class ChatWindow(QWidget):
         try:
             self.client_socket.send(b"DISCONNECT")
             self.client_socket.close()
-            self.close();
+            self.close()
         except Exception as e:
             print("Error disconnecting from room:", e)
             
