@@ -6,6 +6,8 @@
 #include <vector>
 #include <algorithm>
 #include <string>
+#include <iostream>
+#include <sstream>
 
 using namespace Sync;
 using namespace std;
@@ -28,7 +30,7 @@ std::vector<char> chatroomDataToByteArray(const ChatRoom &room)
     data.push_back(';'); // Add delimiter
 
     // Convert password to bytes and append to data if the room is locked
-    if (room.locked)
+    if (room.password != "")
     {
         data.insert(data.end(), room.password.begin(), room.password.end());
     }
@@ -42,10 +44,6 @@ std::vector<char> chatroomDataToByteArray(const ChatRoom &room)
     // Convert max_users to bytes and append to data
     std::string max_users_str = std::to_string(room.max_users);
     data.insert(data.end(), max_users_str.begin(), max_users_str.end());
-    data.push_back(';'); // Add delimiter
-
-    // Convert locked to bytes and append to data
-    data.push_back(room.locked ? '1' : '0');
 
     return data;
 }
@@ -63,9 +61,10 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoom> &roo
     return allData;
 }
 
+// Room name, Password, # of Current Users, Max Capacity
 std::vector<ChatRoom> room_data = {
-    {"Chris's room", "password1", 3, 4, true},
-    {"Elbert's room", "", 1, 5, false} // No password for unlocked room
+    {"Chris's room", "password1", 3, 4},
+    {"Elbert's room", "", 1, 5} // No password for unlocked room
 };
 
 // Get chatroom data as byte array
@@ -78,6 +77,7 @@ private:
     Socket &clientSocket;         // stores the client socket reference
     Sync::ByteArray incomingData; // buffer for incoming data
     std::vector<char> &chatroomData;
+
 public:
     bool isActive = true; // flag to control the thread loop
     SocketThreadIndividually(Socket &socket, std::vector<char> &chatroomData)
@@ -98,12 +98,67 @@ public:
             try
             {
                 clientSocket.Read(incomingData); // reads data from client
-                if (incomingData.ToString() == "")
+                string receivedMsg = incomingData.ToString();
+                // seperating received msgs here
+                std::istringstream iss(receivedMsg);
+                std::vector<std::string> segments;
+                std::string segment;
+
+                while (std::getline(iss, segment, ';'))
+                {
+                    segments.push_back(segment);
+                }
+
+                if (incomingData.ToString() == "") // user disconnection
                 {
                     clientSocket.Write(incomingData); // sends back empty string (client disconnect scenario)
                     break;
                 }
-                string receivedMsg = incomingData.ToString();                                                // converts received data to string
+                else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 5) // user room creation
+                {
+                    room_data.emplace_back(ChatRoom{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
+                    // logic to create room
+                    // Printing segments, TESTIN
+                    std::cout << "Segments: ";
+                    for (const auto &segment : segments)
+                    {
+                        std::cout << segment << " ";
+                    }
+                    std::cout << std::endl;
+                }
+                else if (!segments.empty() && segments[0] == "JOIN_ROOM" && segments.size() == 3) // user joins a room
+                {
+                    for (auto &room : room_data)
+                    {
+                        if (room.name == segments[1])
+                        {
+                            if (room.password == segments[2] && room.max_users != room.current_users) // successful room connection
+                            {
+                                // write logic to join to existing room thread
+                                std::cout << "Segments: ";
+                                for (const auto &segment : segments)
+                                {
+                                    std::cout << segment << " ";
+                                }
+                                std::cout << std::endl;
+                            }
+                            else if (room.max_users == room.current_users) // room is full, return full room msg
+                            {
+                                Sync::ByteArray sendData = Sync::ByteArray("Room is full!");
+                                clientSocket.Write(sendData);
+                            }
+                            else // password is wrong, return invalid password msg
+                            {
+                                Sync::ByteArray sendData = Sync::ByteArray("Invalid password!");
+                                clientSocket.Write(sendData);
+                            }
+                            return 0;
+                        }
+                    }
+                    Sync::ByteArray sendData = Sync::ByteArray("No room found with given name.");
+                    clientSocket.Write(sendData);
+                    return 0;
+                }
                 receivedMsg += ". This string has been modified by the Server and sent back to the Client."; // modifies the received message
                 // prepares modified message for sending
                 Sync::ByteArray sendData = Sync::ByteArray(receivedMsg);
@@ -117,7 +172,8 @@ public:
         return 0;
     }
 
-    void SendChatroomData() {
+    void SendChatroomData()
+    {
         Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
         clientSocket.Write(chatroomByteArray);
     }
@@ -131,6 +187,7 @@ private:
     bool isActive = true;                             // flag to control the server loop
     vector<SocketThreadIndividually *> clientThreads; // stores client thread pointers
     std::vector<char> &chatroomData;
+
 public:
     ServerThread(SocketServer &server, std::vector<char> &chatroomData)
         : server(server), chatroomData(chatroomData)
@@ -157,10 +214,10 @@ public:
         {
             try
             {
-                Socket *newConnection = new Socket(server.Accept()); // accepts new client connection
-                Socket &socketRef = *newConnection;                  // gets reference to the new socket
+                Socket *newConnection = new Socket(server.Accept());                            // accepts new client connection
+                Socket &socketRef = *newConnection;                                             // gets reference to the new socket
                 clientThreads.push_back(new SocketThreadIndividually(socketRef, chatroomData)); // creates and stores new thread for client
-                clientThreads.back()->SendChatroomData(); // Send chatroom data to the new client
+                clientThreads.back()->SendChatroomData();                                       // Send chatroom data to the new client
             }
             catch (TerminationException error)
             {
@@ -177,12 +234,12 @@ public:
 
 int main(void)
 {
-    cout << "I am a server." << endl;    // initial server message
-    SocketServer server(3000);           // creates server socket listening on port 3000
+    cout << "I am a server." << endl;                   // initial server message
+    SocketServer server(3000);                          // creates server socket listening on port 3000
     ServerThread serverOpThread(server, chatroomBytes); // creates server operation thread
-    FlexWait cinWaiter(1, stdin);        // waits for input to shutdown
-    cinWaiter.Wait();                    // waits for any input
-    cin.get();                           // gets the input (for shutdown)
-    server.Shutdown();                   // shuts down the server
-    return 0;                            // exits the program
+    FlexWait cinWaiter(1, stdin);                       // waits for input to shutdown
+    cinWaiter.Wait();                                   // waits for any input
+    cin.get();                                          // gets the input (for shutdown)
+    server.Shutdown();                                  // shuts down the server
+    return 0;                                           // exits the program
 }

@@ -1,6 +1,6 @@
 # Imports
 import sys, socket, threading
-from PyQt5.QtWidgets import QApplication, QMainWindow, QSlider, QVBoxLayout, QWidget, QTextEdit, QPushButton, QLabel, QLineEdit, QHBoxLayout, QComboBox
+from PyQt5.QtWidgets import QApplication, QMainWindow, QSlider, QVBoxLayout, QWidget, QTextEdit, QPushButton, QLabel, QLineEdit, QHBoxLayout, QComboBox, QMessageBox
 from PyQt5.QtGui import QIcon
 
 # Begin class
@@ -64,7 +64,7 @@ class ChatRoomGUI(QMainWindow):
         
         # Create server button
         self.create_button = QPushButton('Create Chatroom')
-        self.create_button.clicked.connect(self.create_buttom_execute)
+        self.create_button.clicked.connect(self.create_button_execute)
         layout.addWidget(self.create_button)
         
         # Spacing
@@ -101,9 +101,25 @@ class ChatRoomGUI(QMainWindow):
         self.room_combo_box.currentIndexChanged.connect(self.update_connect_button_state)
         
     # Create chatroom
-    def create_buttom_execute(self):
-        return
-    
+    def create_button_execute(self):
+        try:
+            # Get room information from input fields
+            room_name = self.create_server_name.text()
+            room_password = self.create_server_password.text()
+            lobby_size = self.slider.value()
+
+            # Send room information to server
+            message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size}".encode() # 1 for the user creating the room 
+            self.client_socket.send(message)
+
+            # Clear input fields after sending data
+            self.create_server_name.clear()
+            self.create_server_password.clear()
+
+        except Exception as e:
+            print("Error creating chat room:", e)
+            QMessageBox.critical(self, "Error", "Failed to create chat room. Please try again.")
+
     # Connect to server
     def connect_to_server(self):
         try:
@@ -138,7 +154,7 @@ class ChatRoomGUI(QMainWindow):
                 current_users = int(room_info[2])
                 max_users = int(room_info[3])
             
-                
+                print(room_info);
                 # Add room information to the combo box
                 room_display = f"{name} - {'Locked' if password else 'Unlocked'}, {current_users}/{max_users} users"
                 self.room_combo_box.addItem(room_display)
@@ -182,9 +198,9 @@ class ChatRoomGUI(QMainWindow):
         if self.client_socket:
             try:
                 # Send room name and password to server for validation
-                message = f"JOIN_ROOM {room_name} {password}".encode()
-                self.client_socket.send(message)
+                message = f"JOIN_ROOM;{room_name};{password}".encode()
                 
+                self.client_socket.send(message)
                 # Close the main window
                 self.close()
                 
