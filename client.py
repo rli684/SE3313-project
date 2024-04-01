@@ -182,6 +182,7 @@ class ChatRoomGUI(QMainWindow):
                     else:
                         self.password_label.hide()
                         self.password_field.hide()
+                        self.password_field.clear()
                         # Set window height dynamically
                         self.setFixedHeight(450)
                 except Exception as e:
@@ -194,6 +195,7 @@ class ChatRoomGUI(QMainWindow):
         password = self.password_field.text()
         locked = selected_room_info.split(" - ")[1].startswith("Locked")
         if(password=="" and locked):
+            QMessageBox.warning(self, "Invalid Password", "Please enter a password.")
             return;
             
         room_name = selected_room_info.split(' - ')[0]
@@ -219,6 +221,12 @@ class ChatRoomGUI(QMainWindow):
                 elif server_response == "INVALID_PASSWORD":
                     # Handle invalid password scenario
                     QMessageBox.warning(self, "Invalid Password", "The password you entered is incorrect. Please try again.")
+                elif server_response == "ROOM_FULL":
+                    # Handle invalid password scenario
+                    QMessageBox.warning(self, "Connection Error", "The room you are joining is full. Please create or join another room.")
+                elif server_response == "NO_ROOM":
+                    # Handle invalid password scenario
+                    QMessageBox.warning(self, "Connection Error", "There are no rooms available. Create your own room or wait for others to create a room.")
                 else:
                     # Handle other server responses
                     QMessageBox.warning(self, "Connection Error", "Failed to connect to the chat room. Please try again later.")
