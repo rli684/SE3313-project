@@ -63,7 +63,7 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoom> &roo
 
 // Room name, Password, # of Current Users, Max Capacity
 std::vector<ChatRoom> room_data = {
-    {"Chris's room", "password1", 3, 4},
+    {"Chris's room", "password1", 5, 5},
     {"Elbert's room", "", 1, 5} // No password for unlocked room
 };
 
@@ -117,6 +117,7 @@ public:
                 else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 5) // user room creation
                 {
                     room_data.emplace_back(ChatRoom{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
+                    chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     // logic to create room
                     // Printing segments, TESTIN
                     std::cout << "Segments: ";
@@ -125,6 +126,7 @@ public:
                         std::cout << segment << " ";
                     }
                     std::cout << std::endl;
+
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
@@ -138,6 +140,7 @@ public:
                             {
                                 // Join room logic here (not detailed, as your focus is on password validation)
                                 std::cout << "User joined the room successfully!" << std::endl;
+                                chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                                 Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                 clientSocket.Write(sendData);
                                 return 0; // End thread execution after handling
@@ -147,21 +150,19 @@ public:
                                 Sync::ByteArray sendData = Sync::ByteArray("ROOM_FULL");
                                 clientSocket.Write(sendData);
                             }
-                            else // password is wrong, return invalid password msg
+                            else if (room.password != segments[2]) // password is wrong, return invalid password msg
                             {
                                 Sync::ByteArray sendData = Sync::ByteArray("INVALID_PASSWORD");
                                 clientSocket.Write(sendData);
                             }
+                            else
+                            {
+                                Sync::ByteArray sendData = Sync::ByteArray("NO_ROOM");
+                                clientSocket.Write(sendData);
+                            }
                         }
                     }
-                    Sync::ByteArray sendData = Sync::ByteArray("NO_ROOM");
-                    clientSocket.Write(sendData);
                 }
-
-                receivedMsg += ". This string has been modified by the Server and sent back to the Client."; // modifies the received message
-                // prepares modified message for sending
-                Sync::ByteArray sendData = Sync::ByteArray(receivedMsg);
-                clientSocket.Write(sendData); // sends modified message back to client
             }
             catch (...)
             {
