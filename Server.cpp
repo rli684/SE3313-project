@@ -115,6 +115,11 @@ public:
             {
                 clientSocket.Read(incomingData); // reads data from client
                 string receivedMsg = incomingData.ToString();
+                if (receivedMsg == "DISCONNECT")
+                {
+                    std::cout << "CLIENT DISCONNECTED" << std::endl;
+                    break;
+                }
                 std::cout << receivedMsg << std::endl;
 
                 // seperating received msgs here
