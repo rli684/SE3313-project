@@ -115,13 +115,12 @@ class ChatRoomGUI(QMainWindow):
             username = self.username_field.text()
             room_password = self.create_server_password.text()
             lobby_size = self.slider.value()
-
-            if(username==""):
-                QMessageBox.warning(self, "Invalid Username", "Please enter a username.")
-                return
-
             if(room_name==""):
                 QMessageBox.warning(self, "Invalid Room Name", "Please enter a room name.")
+                return
+            
+            if(username==""):
+                QMessageBox.warning(self, "Invalid Username", "Please enter a username.")
                 return
             # Send room information to server
             message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode() # 1 for the user creating the room 
@@ -332,7 +331,7 @@ class ChatWindow(QWidget):
 
     def disconnect_from_room(self):
         try:
-            self.client_socket.send("").encode()
+            self.client_socket.send("".encode())
             self.client_socket.close()
             self.close()
         except Exception as e:
