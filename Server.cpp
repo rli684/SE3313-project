@@ -109,12 +109,7 @@ public:
                     segments.push_back(segment);
                 }
 
-                if (incomingData.ToString() == "") // user disconnection
-                {
-                    clientSocket.Write(incomingData); // sends back empty string (client disconnect scenario)
-                    break;
-                }
-                else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 5) // user room creation
+                if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 5) // user room creation
                 {
                     room_data.emplace_back(ChatRoom{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
@@ -126,7 +121,6 @@ public:
                         std::cout << segment << " ";
                     }
                     std::cout << std::endl;
-
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
