@@ -154,7 +154,7 @@ class ChatRoomGUI(QMainWindow):
                 current_users = int(room_info[2])
                 max_users = int(room_info[3])
             
-                print(room_info);
+                print(room_info)
                 # Add room information to the combo box
                 room_display = f"{name} - {'Locked' if password else 'Unlocked'}, {current_users}/{max_users} users"
                 self.room_combo_box.addItem(room_display)
@@ -192,27 +192,37 @@ class ChatRoomGUI(QMainWindow):
         selected_index = self.room_combo_box.currentIndex()
         selected_room_info = self.room_combo_box.itemText(selected_index)
         password = self.password_field.text()
-        room_name = selected_room_info.split(' - ')[0] 
+        room_name = selected_room_info.split(' - ')[0]
         print(f"Connecting to: {selected_room_info} with password: {password}")
-        
+
         if self.client_socket:
             try:
                 # Send room name and password to server for validation
-                message = f"JOIN_ROOM;{room_name};{password}".encode()
-                
+                message = f"JOIN_ROOM;{room_name};{password if password else 'NO_PASSWORD'}".encode()
                 self.client_socket.send(message)
-                # Close the main window
-                self.close()
-                
-                # Open the chat window
-                self.open_chat_window(room_name)
-                
-                # Start a new thread for message listening
-                threading.Thread(target=self.receive_messages).start()
-                
+
+                # Now, wait for the server's response
+                server_response = self.client_socket.recv(1024).decode()
+                print("Server response:", server_response)  # Debugging statement
+
+                if server_response == "JOIN_SUCCESS":
+                    print("Joining room success")  # Debugging statement
+                    # If the response is positive, proceed to open the chat window
+                    self.close()  # Close the main window
+                    self.open_chat_window(room_name)
+                    # Start a new thread for message listening
+                    threading.Thread(target=self.receive_messages).start()
+                elif server_response == "INVALID_PASSWORD":
+                    # Handle invalid password scenario
+                    QMessageBox.warning(self, "Invalid Password", "The password you entered is incorrect. Please try again.")
+                else:
+                    # Handle other server responses
+                    QMessageBox.warning(self, "Connection Error", "Failed to connect to the chat room. Please try again later.")
+                    
             except Exception as e:
-                print("Error sending data to the server:", e)
-        
+                print("Error connecting to the room:", e)
+                QMessageBox.critical(self, "Error", "Failed to connect to the chat room. Please try again.")
+
     def open_chat_window(self, room_name):
         self.chat_window = ChatWindow(room_name, self.client_socket, self)
         self.chat_window.show()

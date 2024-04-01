@@ -126,39 +126,39 @@ public:
                     }
                     std::cout << std::endl;
                 }
+                // Existing JOIN_ROOM handling inside ThreadMain
+
                 else if (!segments.empty() && segments[0] == "JOIN_ROOM" && segments.size() == 3) // user joins a room
                 {
                     for (auto &room : room_data)
                     {
                         if (room.name == segments[1])
                         {
-                            if (room.password == segments[2] && room.max_users != room.current_users) // successful room connection
+                            if ((segments[2] == "NO_PASSWORD" || room.password == segments[2]) && room.current_users < room.max_users) // successful room connection
                             {
-                                // write logic to join to existing room thread
-                                std::cout << "Segments: ";
-                                for (const auto &segment : segments)
-                                {
-                                    std::cout << segment << " ";
-                                }
-                                std::cout << std::endl;
+                                // Join room logic here (not detailed, as your focus is on password validation)
+                                std::cout << "User joined the room successfully!" << std::endl;
+                                Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
+                                clientSocket.Write(sendData);
                             }
-                            else if (room.max_users == room.current_users) // room is full, return full room msg
+                            else if (room.max_users <= room.current_users) // room is full, return full room msg
                             {
-                                Sync::ByteArray sendData = Sync::ByteArray("Room is full!");
+                                Sync::ByteArray sendData = Sync::ByteArray("ROOM_FULL");
                                 clientSocket.Write(sendData);
                             }
                             else // password is wrong, return invalid password msg
                             {
-                                Sync::ByteArray sendData = Sync::ByteArray("Invalid password!");
+                                Sync::ByteArray sendData = Sync::ByteArray("INVALID_PASSWORD");
                                 clientSocket.Write(sendData);
                             }
-                            return 0;
+                            return 0; // End thread execution after handling
                         }
                     }
-                    Sync::ByteArray sendData = Sync::ByteArray("No room found with given name.");
+                    Sync::ByteArray sendData = Sync::ByteArray("NO_ROOM");
                     clientSocket.Write(sendData);
-                    return 0;
+                    return 0; // End thread execution after handling
                 }
+
                 receivedMsg += ". This string has been modified by the Server and sent back to the Client."; // modifies the received message
                 // prepares modified message for sending
                 Sync::ByteArray sendData = Sync::ByteArray(receivedMsg);
