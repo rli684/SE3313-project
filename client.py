@@ -10,7 +10,6 @@ from PyQt5.QtWidgets import (
     QPushButton,
     QLabel,
     QLineEdit,
-    QHBoxLayout,
     QComboBox,
     QMessageBox,
 )
@@ -48,7 +47,13 @@ class ChatRoomGUI(QMainWindow):
         # Layout for children
         layout = QVBoxLayout()  # Arrange in vertical column
         self.central_widget.setLayout(layout)
-
+        
+        # username
+        self.username_label = QLabel("Username:")
+        self.username_field = QLineEdit()
+        layout.addWidget(self.username_label)
+        layout.addWidget(self.username_field)
+        
         # Label for server creation
         self.create_server_label = QLabel("Create Chatroom")
         self.create_server_label.setStyleSheet("text-decoration: underline;")
@@ -107,12 +112,6 @@ class ChatRoomGUI(QMainWindow):
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_field)
 
-        # username
-        self.username_label = QLabel("Username:")
-        self.username_field = QLineEdit()
-        layout.addWidget(self.username_label)
-        layout.addWidget(self.username_field)
-
         # Connect button
         self.connect_button = QPushButton("Connect")
         self.connect_button.clicked.connect(self.connect_to_room)
@@ -127,23 +126,24 @@ class ChatRoomGUI(QMainWindow):
 
     # Create chatroom
     def create_button_execute(self):
+        self.closeEvent = None
         try:
             # Get room information from input fields
             room_name = self.create_server_name.text()
             username = self.username_field.text()
             room_password = self.create_server_password.text()
             lobby_size = self.slider.value()
+            if username == "":
+                QMessageBox.warning(
+                    self, "Invalid Username", "Please enter a username."
+                )
+                return
             if room_name == "":
                 QMessageBox.warning(
                     self, "Invalid Room Name", "Please enter a room name."
                 )
                 return
 
-            if username == "":
-                QMessageBox.warning(
-                    self, "Invalid Username", "Please enter a username."
-                )
-                return
             # Send room information to server
             message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode()  # 1 for the user creating the room
             self.client_socket.send(message)
@@ -206,7 +206,6 @@ class ChatRoomGUI(QMainWindow):
                 current_users = int(room_info[2])
                 max_users = int(room_info[3])
 
-                print(room_info)
                 # Add room information to the combo box
                 room_display = f"{name} - {'Locked' if password else 'Unlocked'}, {current_users}/{max_users} users"
                 self.room_combo_box.addItem(room_display)
@@ -242,6 +241,7 @@ class ChatRoomGUI(QMainWindow):
 
     # Connecting to room
     def connect_to_room(self):
+        self.closeEvent = None
         selected_index = self.room_combo_box.currentIndex()
         selected_room_info = self.room_combo_box.itemText(selected_index)
         password = self.password_field.text()
@@ -329,7 +329,6 @@ class ChatRoomGUI(QMainWindow):
                         message
                     )  # Call a method to handle received messages
             except Exception as e:
-                print("Error receiving message:", e)
                 break  # Break the loop if there's an error or connection is closed
 
     def process_received_message(self, message):
@@ -371,6 +370,7 @@ class ChatWindow(QWidget):
         self.disconnect_button = QPushButton("Disconnect")
         self.disconnect_button.clicked.connect(self.disconnect_from_room)
         layout.addWidget(self.disconnect_button)
+        self.closeEvent = functools.partial(closeEvent, self)
 
     def send_message(self):
         message = self.text_input.text()
@@ -380,12 +380,7 @@ class ChatWindow(QWidget):
         self.text_input.clear()
 
     def disconnect_from_room(self):
-        try:
-            self.client_socket.send("".encode())
-            self.client_socket.close()
-            self.close()
-        except Exception as e:
-            print("Error disconnecting from room:", e)
+        self.close()
 
 def closeEvent(self, event):
     try:
