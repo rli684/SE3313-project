@@ -161,6 +161,7 @@ public:
                                 string roomName = segments[1];
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
+                                clientRoom = this->getRoom(roomName);
 
                                 Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                 clientSocket.Write(sendData);
