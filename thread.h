@@ -21,7 +21,7 @@ protected:
 
 private:
     Thread(Thread const &){}
-    Thread & operator=(Thread const &){}
+    Thread & operator=(Thread const &){return *this;}
 public:
     Thread(int exitTimeout = 1000);
     virtual ~Thread();
