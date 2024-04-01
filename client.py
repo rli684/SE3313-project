@@ -332,7 +332,7 @@ class ChatWindow(QWidget):
 
     def disconnect_from_room(self):
         try:
-            self.client_socket.send(b"DISCONNECT")
+            self.client_socket.send("").encode()
             self.client_socket.close()
             self.close()
         except Exception as e:
