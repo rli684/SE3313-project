@@ -1,5 +1,5 @@
 # Imports
-import sys, socket, threading, time
+import sys, socket, threading, time, functools
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -122,6 +122,8 @@ class ChatRoomGUI(QMainWindow):
         self.room_combo_box.currentIndexChanged.connect(
             self.update_connect_button_state
         )
+
+        self.closeEvent = functools.partial(closeEvent, self)
 
     # Create chatroom
     def create_button_execute(self):
@@ -385,20 +387,20 @@ class ChatWindow(QWidget):
         except Exception as e:
             print("Error disconnecting from room:", e)
 
+def closeEvent(self, event):
+    try:
+        if self.client_socket:
+            print("Sending disconnect message...")
+            self.client_socket.send("DISCONNECT".encode())
+            # Wait for a brief moment to ensure the message is sent
+            time.sleep(0.1)
+            print("Closing socket...")
+            self.client_socket.close()
+    except Exception as e:
+        print("Error disconnecting from room:", e)
+    finally:
+        event.accept()
 
-    def closeEvent(self, event):
-        try:
-            if self.client_socket:
-                print("Sending disconnect message...")
-                self.client_socket.send("DISCONNECT".encode())
-                # Wait for a brief moment to ensure the message is sent
-                time.sleep(0.5)
-                print("Closing socket...")
-                self.client_socket.close()
-        except Exception as e:
-            print("Error disconnecting from room:", e)
-        finally:
-            event.accept()
 
 def main():
     app = QApplication(sys.argv)
