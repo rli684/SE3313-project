@@ -121,7 +121,6 @@ public:
                 std::istringstream iss(receivedMsg);
                 std::vector<std::string> segments;
                 std::string segment;
-                clientRoom = this->getRoom(roomName);
 
                 while (std::getline(iss, segment, ';'))
                 {
@@ -139,10 +138,9 @@ public:
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     string roomName = segments[1];
                     string clientName = segments[5];
-
+                    clientRoom = this->getRoom(roomName);
                     rooms.push_back(new ChatRoom(roomName));
                     clientRoom->addClient(clientName, &clientSocket);
-                   
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
@@ -160,8 +158,6 @@ public:
                                 string roomName = segments[1];
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
-
-
 
                                 Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                 clientSocket.Write(sendData);

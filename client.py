@@ -112,11 +112,12 @@ class ChatRoomGUI(QMainWindow):
         try:
             # Get room information from input fields
             room_name = self.create_server_name.text()
+            username = self.username_field.text()
             room_password = self.create_server_password.text()
             lobby_size = self.slider.value()
 
             # Send room information to server
-            message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size}".encode() # 1 for the user creating the room 
+            message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode() # 1 for the user creating the room 
             self.client_socket.send(message)
 
             # Clear input fields after sending data
