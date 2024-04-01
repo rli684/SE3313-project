@@ -116,14 +116,31 @@ class ChatRoomGUI(QMainWindow):
             room_password = self.create_server_password.text()
             lobby_size = self.slider.value()
 
+            if(username==""):
+                QMessageBox.warning(self, "Invalid Username", "Please enter a username.")
+                return
+
+            if(room_name==""):
+                QMessageBox.warning(self, "Invalid Room Name", "Please enter a room name.")
+                return
             # Send room information to server
             message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode() # 1 for the user creating the room 
             self.client_socket.send(message)
+            # Now, wait for the server's response
+            server_response = self.client_socket.recv(1024).decode()
+            print("Server response:", server_response)  # Debugging statement
 
-            # Clear input fields after sending data
-            self.create_server_name.clear()
-            self.create_server_password.clear()
-
+            if server_response == "CREATE_SUCCESS":
+                print("Creating room success")  # Debugging statement
+                # If the response is positive, proceed to open the chat window
+                self.close()  # Close the main window
+                self.open_chat_window(room_name)
+                # Start a new thread for message listening
+                threading.Thread(target=self.receive_messages).start()
+            else:
+                # Handle other server responses
+                QMessageBox.warning(self, "Connection Error", "Failed to connect to the chat room. Please try again later.")
+                
         except Exception as e:
             print("Error creating chat room:", e)
             QMessageBox.critical(self, "Error", "Failed to create chat room. Please try again.")

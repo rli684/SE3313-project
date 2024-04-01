@@ -138,9 +138,12 @@ public:
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     string roomName = segments[1];
                     string clientName = segments[5];
-                    clientRoom = this->getRoom(roomName);
                     rooms.push_back(new ChatRoom(roomName));
+                    clientRoom = this->getRoom(roomName);
                     clientRoom->addClient(clientName, &clientSocket);
+                    Sync::ByteArray sendData = Sync::ByteArray("CREATE_SUCCESS");
+                    clientSocket.Write(sendData);
+                    return 1;
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
