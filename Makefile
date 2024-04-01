@@ -1,8 +1,11 @@
 all: Server
 
-Server : Server.o thread.o socket.o socketserver.o Blockable.o
-	g++ -o Server Server.o thread.o socket.o socketserver.o Blockable.o -pthread -l rt
+Server : Server.o thread.o socket.o socketserver.o Blockable.o ChatRoom.o
+	g++ -o Server Server.o thread.o socket.o socketserver.o Blockable.o ChatRoom.o -pthread -l rt
 
+ChatRoom.o : ChatRoom.cpp ChatRoom.h
+	g++ -c ChatRoom.cpp -std=c++11
+	
 Blockable.o : Blockable.h Blockable.cpp
 	g++ -c Blockable.cpp -std=c++11
 

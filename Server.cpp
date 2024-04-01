@@ -1,5 +1,7 @@
 #include "thread.h"
 #include "socketserver.h"
+#include "ChatRoom.h"
+
 #include <stdlib.h>
 #include <time.h>
 #include <list>
@@ -8,11 +10,12 @@
 #include <string>
 #include <iostream>
 #include <sstream>
-
 using namespace Sync;
 using namespace std;
 
-struct ChatRoom
+vector<ChatRoom *> rooms;
+
+struct ChatRoomStructure
 {
     std::string name;
     std::string password;
@@ -22,7 +25,7 @@ struct ChatRoom
 };
 
 // Function to convert ChatRoom struct data into a byte array for sending over a socket
-std::vector<char> chatroomDataToByteArray(const ChatRoom &room)
+std::vector<char> chatroomDataToByteArray(const ChatRoomStructure &room)
 {
     std::vector<char> data;
     // Convert name to bytes and append to data
@@ -49,7 +52,7 @@ std::vector<char> chatroomDataToByteArray(const ChatRoom &room)
 }
 
 // Function to loop through an array of ChatRoom structs and return the data in a byte array format
-std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoom> &rooms)
+std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoomStructure> &rooms)
 {
     std::vector<char> allData;
     for (const auto &room : rooms)
@@ -62,7 +65,7 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoom> &roo
 }
 
 // Room name, Password, # of Current Users, Max Capacity
-std::vector<ChatRoom> room_data = {
+std::vector<ChatRoomStructure> room_data = {
     {"Chris's room", "password1", 5, 5},
     {"Elbert's room", "", 1, 5} // No password for unlocked room
 };
@@ -90,8 +93,21 @@ public:
         // destructor
     }
 
+    ChatRoom *getRoom(string &roomName)
+    {
+        for (auto &room : rooms) // get the chatRoom of the client
+        {
+            if (room->getRoomName() == roomName)
+            {
+                return room;
+            }
+        }
+        return nullptr;
+    }
+
     virtual long ThreadMain()
     {
+        ChatRoom *clientRoom = nullptr;
         // main thread loop, waits for data and echoes it back
         while (this->isActive)
         {
@@ -105,6 +121,7 @@ public:
                 std::istringstream iss(receivedMsg);
                 std::vector<std::string> segments;
                 std::string segment;
+                clientRoom = this->getRoom(roomName);
 
                 while (std::getline(iss, segment, ';'))
                 {
@@ -112,20 +129,20 @@ public:
                 }
 
                 std::cout << segments[3] << std::endl;
-                std::cout << segments[3] << std::endl;
 
                 if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation
                 {
-                    room_data.emplace_back(ChatRoom{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
+                    // Pushing new room to room list
+                    room_data.emplace_back(ChatRoomStructure{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
+
+                    // Updating byte array of room data
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
-                    // logic to create room
-                    // Printing segments, TESTIN
-                    std::cout << "Segments: ";
-                    for (const auto &segment : segments)
-                    {
-                        std::cout << segment << " ";
-                    }
-                    std::cout << std::endl;
+                    string roomName = segments[1];
+                    string clientName = segments[5];
+
+                    rooms.push_back(new ChatRoom(roomName));
+                    clientRoom->addClient(clientName, &clientSocket);
+                   
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
@@ -140,6 +157,12 @@ public:
                                 // Join room logic here (not detailed, as your focus is on password validation)
                                 std::cout << "User joined the room successfully!" << std::endl;
                                 chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+                                string roomName = segments[1];
+                                string clientName = segments[3];
+                                // logic to loop through room threads to find which room has given name
+
+
+
                                 Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                 clientSocket.Write(sendData);
                                 return 0; // End thread execution after handling
