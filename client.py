@@ -192,6 +192,10 @@ class ChatRoomGUI(QMainWindow):
         selected_index = self.room_combo_box.currentIndex()
         selected_room_info = self.room_combo_box.itemText(selected_index)
         password = self.password_field.text()
+        locked = selected_room_info.split(" - ")[1].startswith("Locked")
+        if(password=="" and locked):
+            return;
+            
         room_name = selected_room_info.split(' - ')[0]
         print(f"Connecting to: {selected_room_info} with password: {password}")
 

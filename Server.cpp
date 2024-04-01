@@ -140,6 +140,7 @@ public:
                                 std::cout << "User joined the room successfully!" << std::endl;
                                 Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                 clientSocket.Write(sendData);
+                                return 0; // End thread execution after handling
                             }
                             else if (room.max_users <= room.current_users) // room is full, return full room msg
                             {
@@ -151,12 +152,10 @@ public:
                                 Sync::ByteArray sendData = Sync::ByteArray("INVALID_PASSWORD");
                                 clientSocket.Write(sendData);
                             }
-                            return 0; // End thread execution after handling
                         }
                     }
                     Sync::ByteArray sendData = Sync::ByteArray("NO_ROOM");
                     clientSocket.Write(sendData);
-                    return 0; // End thread execution after handling
                 }
 
                 receivedMsg += ". This string has been modified by the Server and sent back to the Client."; // modifies the received message
