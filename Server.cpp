@@ -99,6 +99,8 @@ public:
             {
                 clientSocket.Read(incomingData); // reads data from client
                 string receivedMsg = incomingData.ToString();
+                std::cout << receivedMsg << std::endl;
+
                 // seperating received msgs here
                 std::istringstream iss(receivedMsg);
                 std::vector<std::string> segments;
@@ -109,7 +111,10 @@ public:
                     segments.push_back(segment);
                 }
 
-                if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 5) // user room creation
+                std::cout << segments[3] << std::endl;
+                std::cout << segments[3] << std::endl;
+
+                if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation
                 {
                     room_data.emplace_back(ChatRoom{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
@@ -124,7 +129,7 @@ public:
                 }
                 // Existing JOIN_ROOM handling inside ThreadMain
 
-                else if (!segments.empty() && segments[0] == "JOIN_ROOM" && segments.size() == 3) // user joins a room
+                else if (!segments.empty() && segments[0] == "JOIN_ROOM" && segments.size() == 4) // user joins a room
                 {
                     for (auto &room : room_data)
                     {

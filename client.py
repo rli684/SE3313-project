@@ -92,6 +92,13 @@ class ChatRoomGUI(QMainWindow):
         layout.addWidget(self.password_label)
         layout.addWidget(self.password_field)
         
+
+        # username
+        self.username_label = QLabel("Username:")
+        self.username_field = QLineEdit()
+        layout.addWidget(self.username_label)
+        layout.addWidget(self.username_field)
+
         # Connect button
         self.connect_button = QPushButton('Connect')
         self.connect_button.clicked.connect(self.connect_to_room)
@@ -193,10 +200,15 @@ class ChatRoomGUI(QMainWindow):
         selected_index = self.room_combo_box.currentIndex()
         selected_room_info = self.room_combo_box.itemText(selected_index)
         password = self.password_field.text()
+        username = self.username_field.text()
         locked = selected_room_info.split(" - ")[1].startswith("Locked")
+        if(username==""):
+            QMessageBox.warning(self, "Invalid Username", "Please enter a username.")
+            return
+    
         if(password=="" and locked):
             QMessageBox.warning(self, "Invalid Password", "Please enter a password.")
-            return;
+            return
             
         room_name = selected_room_info.split(' - ')[0]
         print(f"Connecting to: {selected_room_info} with password: {password}")
@@ -204,7 +216,7 @@ class ChatRoomGUI(QMainWindow):
         if self.client_socket:
             try:
                 # Send room name and password to server for validation
-                message = f"JOIN_ROOM;{room_name};{password if password else 'NO_PASSWORD'}".encode()
+                message = f"JOIN_ROOM;{room_name};{password if password else 'NO_PASSWORD'};{username}".encode()
                 self.client_socket.send(message)
 
                 # Now, wait for the server's response
@@ -246,9 +258,16 @@ class ChatRoomGUI(QMainWindow):
                 if message:  # Check if message is not empty
                     print("Received message:", message)
                     # Process the received message, update GUI, etc.
+                    self.process_received_message(message)  # Call a method to handle received messages
             except Exception as e:
                 print("Error receiving message:", e)
                 break  # Break the loop if there's an error or connection is closed
+
+    def process_received_message(self, message):
+        # Implement how to handle the received message here
+        # For example, display the message in the GUI
+        self.messages_display.append(message)
+
         
 
 
