@@ -1,5 +1,9 @@
 # Imports
-import sys, socket, threading, time, functools
+import sys
+import socket
+import threading
+import time
+import functools
 from PyQt5.QtWidgets import (
     QApplication,
     QMainWindow,
@@ -47,13 +51,13 @@ class ChatRoomGUI(QMainWindow):
         # Layout for children
         layout = QVBoxLayout()  # Arrange in vertical column
         self.central_widget.setLayout(layout)
-        
+
         # username
         self.username_label = QLabel("Username:")
         self.username_field = QLineEdit()
         layout.addWidget(self.username_label)
         layout.addWidget(self.username_field)
-        
+
         # Label for server creation
         self.create_server_label = QLabel("Create Chatroom")
         self.create_server_label.setStyleSheet("text-decoration: underline;")
@@ -66,7 +70,8 @@ class ChatRoomGUI(QMainWindow):
         layout.addWidget(self.create_server_name)
 
         # Password box for server creation
-        self.create_server_password_label = QLabel("Chatroom Password:")
+        self.create_server_password_label = QLabel(
+            "Chatroom Password (Optional):")
         self.create_server_password = QLineEdit()
         layout.addWidget(self.create_server_password_label)
         layout.addWidget(self.create_server_password)
@@ -145,7 +150,9 @@ class ChatRoomGUI(QMainWindow):
                 return
 
             # Send room information to server
-            message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode()  # 1 for the user creating the room
+            # 1 for the user creating the room
+            message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode(
+            )
             self.client_socket.send(message)
             # Now, wait for the server's response
             server_response = self.client_socket.recv(1024).decode()
@@ -155,7 +162,7 @@ class ChatRoomGUI(QMainWindow):
                 print("Creating room success")  # Debugging statement
                 # If the response is positive, proceed to open the chat window
                 self.close()  # Close the main window
-                self.open_chat_window(room_name)
+                self.open_chat_window(room_name, username)
                 # Start a new thread for message listening
                 threading.Thread(target=self.receive_messages).start()
             else:
@@ -178,7 +185,8 @@ class ChatRoomGUI(QMainWindow):
             # Establish a socket connection to the server
             server_address = "127.0.0.1"  # CHANGE THIS TO YOUR SERVER'S IP ADDRESS
             server_port = 3000  # CHANGE THIS TO YOUR SERVER'S PORT
-            self.client_socket = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+            self.client_socket = socket.socket(
+                socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((server_address, server_port))
             print("Connected to the server.")
             room_data = self.client_socket.recv(1024).decode()
@@ -186,11 +194,20 @@ class ChatRoomGUI(QMainWindow):
             return self.client_socket
         except Exception as e:
             print("Error connecting to the server:", e)
-            return None
+            exit(0)
 
     # Populate available rooms
     def populate_room_info(self, room_data):
         try:
+            if (room_data == "NO_ROOMS"):
+                self.available_rooms_label.hide()
+                self.join_rooms_label.hide()
+                self.room_combo_box.hide()
+                return
+            self.available_rooms_label.show()
+            self.join_rooms_label.show()
+            self.room_combo_box.show()
+            
             self.room_combo_box.clear()
 
             room_data = room_data.splitlines()
@@ -248,11 +265,13 @@ class ChatRoomGUI(QMainWindow):
         username = self.username_field.text()
         locked = selected_room_info.split(" - ")[1].startswith("Locked")
         if username == "":
-            QMessageBox.warning(self, "Invalid Username", "Please enter a username.")
+            QMessageBox.warning(self, "Invalid Username",
+                                "Please enter a username.")
             return
 
         if password == "" and locked:
-            QMessageBox.warning(self, "Invalid Password", "Please enter a password.")
+            QMessageBox.warning(self, "Invalid Password",
+                                "Please enter a password.")
             return
 
         room_name = selected_room_info.split(" - ")[0]
@@ -261,18 +280,20 @@ class ChatRoomGUI(QMainWindow):
         if self.client_socket:
             try:
                 # Send room name and password to server for validation
-                message = f"JOIN_ROOM;{room_name};{password if password else 'NO_PASSWORD'};{username}".encode()
+                message = f"JOIN_ROOM;{room_name};{password if password else 'NO_PASSWORD'};{username}".encode(
+                )
                 self.client_socket.send(message)
 
                 # Now, wait for the server's response
                 server_response = self.client_socket.recv(1024).decode()
-                print("Server response:", server_response)  # Debugging statement
+                # Debugging statement
+                print("Server response:", server_response)
 
                 if server_response == "JOIN_SUCCESS":
                     print("Joining room success")  # Debugging statement
                     # If the response is positive, proceed to open the chat window
                     self.close()  # Close the main window
-                    self.open_chat_window(room_name)
+                    self.open_chat_window(room_name, username)
                     # Start a new thread for message listening
                     threading.Thread(target=self.receive_messages).start()
                 elif server_response == "INVALID_PASSWORD":
@@ -312,35 +333,41 @@ class ChatRoomGUI(QMainWindow):
                     "Failed to connect to the chat room. Please try again.",
                 )
 
-    def open_chat_window(self, room_name):
-        self.chat_window = ChatWindow(room_name, self.client_socket, self)
+    def open_chat_window(self, room_name, username):
+        self.chat_window = ChatWindow(
+            room_name, self.client_socket, username, self)
         self.chat_window.show()
 
     def receive_messages(self):
         while self.running:
             try:
                 message = self.client_socket.recv(
-                    1024
-                ).decode()  # Receive message from server
+                    1024).decode()  # Receive message from server
                 if message:  # Check if message is not empty
                     print("Received message:", message)
+                    # Split message into parts
+                    parts = message.split(';')
+                    # removing leading & trailing spaces
+                    username = parts[0].strip()
+                    message = parts[1].strip()
                     # Process the received message, update GUI, etc.
-                    self.process_received_message(
-                        message
-                    )  # Call a method to handle received messages
+                    # Call a method to handle received messages
+                    self.process_received_message(f"{username}: {message}")
             except Exception as e:
+                print(e)
                 break  # Break the loop if there's an error or connection is closed
 
     def process_received_message(self, message):
         # Implement how to handle the received message here
         # For example, display the message in the GUI
-        self.messages_display.append(message)
+        self.chat_window.messages_display.append(message)
 
 
 class ChatWindow(QWidget):
-    def __init__(self, room_name, client_socket, parent=None):
+    def __init__(self, room_name, client_socket, username, parent=None):
         super().__init__()
         self.room_name = room_name
+        self.username = username
         self.client_socket = client_socket
         self.parent = parent
         self.initUI()
@@ -370,10 +397,15 @@ class ChatWindow(QWidget):
         self.disconnect_button = QPushButton("Disconnect")
         self.disconnect_button.clicked.connect(self.disconnect_from_room)
         layout.addWidget(self.disconnect_button)
-        self.closeEvent = functools.partial(closeEvent, self)
+
+        self.closeEvent = functools.partial(disconnectEvent, self)
 
     def send_message(self):
         message = self.text_input.text()
+        if (message == ""):  # preventing empty messages
+            return
+        self.messages_display.append(f"{self.username}: {message}")
+        message = f"MESSAGE_ROOM;{self.room_name};{message};{self.username}"
         # Placeholder for sending message to server
         print("Sending message:", message)
         self.client_socket.send(message.encode())
@@ -382,11 +414,28 @@ class ChatWindow(QWidget):
     def disconnect_from_room(self):
         self.close()
 
+
 def closeEvent(self, event):
     try:
         if self.client_socket:
             print("Sending disconnect message...")
             self.client_socket.send("DISCONNECT".encode())
+            # Wait for a brief moment to ensure the message is sent
+            time.sleep(0.1)
+            print("Closing socket...")
+            self.client_socket.close()
+    except Exception as e:
+        print("Error disconnecting from room:", e)
+    finally:
+        event.accept()
+
+
+def disconnectEvent(self, event):
+    try:
+        if self.client_socket:
+            print("Sending disconnect message...")
+            self.client_socket.send(
+                f"DISCONNECT_ROOM;{self.room_name};{self.username}".encode())
             # Wait for a brief moment to ensure the message is sent
             time.sleep(0.1)
             print("Closing socket...")

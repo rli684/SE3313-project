@@ -30,7 +30,6 @@ void ChatRoom::broadcastMessage(const string &message, const string &sender)
     {
         if (client.name != sender)
         {
-
             client.socket->Write(data);
         }
     }
@@ -43,28 +42,32 @@ long ChatRoom::ThreadMain()
         // Main loop of the chatroom
         while (this->isActive)
         {
-            // Check for incoming messages from clients
-            for (auto &client : clients)
-            {
+            // // Check for incoming messages from clients
+            // for (auto &client : clients)
+            // {
 
-                ByteArray receivedData;
-                int bytesRead = client.socket->Read(receivedData);
-                if (bytesRead > 0)
-                {
-                    string message = receivedData.ToString();
-                    // Broadcast the received message to all clients except the sender
-                    broadcastMessage(message, client.name);
-                }
-                else if (bytesRead == 0)
-                {
-                    // Client disconnected
-                    removeClientByName(client.name);
-                    break;
-                }
-            }
+            //     ByteArray receivedData;
+            //     int bytesRead = client.socket->Read(receivedData);
+            //     std::cout << receivedData.ToString() << std::endl;
+            //     if (bytesRead > 0)
+            //     {
+            //         string message = receivedData.ToString();
+            //         // Broadcast the received message to all clients except the sender
+            //         string final = client.name + ";" + message;
+            //         std::cout << final << std::endl;
+            //         broadcastMessage(final, client.name);
+            //     }
+            //     else
+            //     {
+            //         std::cout << "im here" << std::endl;
+            //         // Client disconnected
+            //         removeClientByName(client.name);
+            //         break;
+            //     }
+            // }
 
-            // Sleep for a short time to avoid busy-waiting
-            usleep(1000); // Sleep for 1 millisecond
+            // // Sleep for a short time to avoid busy-waiting
+            // usleep(1000); // Sleep for 1 millisecond
         }
     }
     catch (TerminationException error)
@@ -82,10 +85,9 @@ void ChatRoom::setChatroomName(const string &newName)
 // Add a client to the chatroom
 void ChatRoom::addClient(const string &name, Socket *socket)
 {
-
     clients.emplace_back(name, socket); // Pass Sync::Socket pointer
-    cout << "hi";                       // notify all other clients that this client has joined the room
-    // broadcastMessage(name + " has Joined", name);
+    string message = "Server;" + name + " has joined the chatroom.";
+    broadcastMessage(message, name);
 }
 
 // Remove a client from the chatroom
@@ -99,7 +101,9 @@ void ChatRoom::removeClientByName(const string &clientName)
         {
 
             it = clients.erase(it); // Erase element and update iterator
-            broadcastMessage(clientName + " has Left", clientName);
+            string message = "Server;" + clientName + " has left the chatroom.";
+            std::cout << message << std::endl;
+            broadcastMessage(message, clientName);
             return; // Assuming each client has a unique name, so we can return after erasing one client
         }
         else
