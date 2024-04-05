@@ -35,6 +35,19 @@ void ChatRoom::broadcastMessage(const string &message, const string &sender)
     }
 }
 
+bool ChatRoom::existingUser(const string &username)
+{
+    for (auto &client : clients)
+    {
+        if (client.name == username)
+        {
+            return true;
+        }
+        return false;
+    }
+    return false;
+}
+
 long ChatRoom::ThreadMain()
 {
     try

@@ -30,6 +30,8 @@ public:
 
     ~ChatRoom();
 
+    bool existingUser(const string &username);
+
     void broadcastMessage(const string &message, const string &sender);
 
     long ThreadMain() override;

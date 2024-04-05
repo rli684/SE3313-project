@@ -146,8 +146,15 @@ public:
                                                        { return obj.name == roomName; }),
                                         room_data.end());
                         clientRoom->isActive = false;
-                        chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     }
+                    for (auto &room : room_data)
+                    {
+                        if (room.name == roomName)
+                        {
+                            room.current_users--; // Increment current_users by one
+                        }
+                    }
+                    chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     break;
                 }
                 else if (segments[0] == "MESSAGE_ROOM")
@@ -183,15 +190,30 @@ public:
                         {
                             if ((segments[2] == "NO_PASSWORD" || room.password == segments[2]) && room.current_users < room.max_users) // successful room connection
                             {
-                                // Join room logic here (not detailed, as your focus is on password validation)
-                                chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                                 string roomName = segments[1];
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
                                 clientRoom = this->getRoom(roomName);
-                                clientRoom->addClient(clientName, &clientSocket);
-                                Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
-                                clientSocket.Write(sendData);
+                                if (clientRoom->existingUser(clientName))
+                                {
+                                    Sync::ByteArray sendData = Sync::ByteArray("EXISTING_USER");
+                                    clientSocket.Write(sendData);
+                                }
+                                else
+                                {
+                                    for (auto &room : room_data)
+                                    {
+                                        if (room.name == roomName)
+                                        {
+                                            room.current_users++; // Increment current_users by one
+                                        }
+                                    }
+                                    // Join room logic here (not detailed, as your focus is on password validation)
+                                    chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+                                    clientRoom->addClient(clientName, &clientSocket);
+                                    Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
+                                    clientSocket.Write(sendData);
+                                }
                             }
                             else if (room.max_users <= room.current_users) // room is full, return full room msg
                             {

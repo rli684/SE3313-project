@@ -16,6 +16,7 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QComboBox,
     QMessageBox,
+    QDesktopWidget
 )
 from PyQt5.QtGui import QIcon
 
@@ -129,6 +130,8 @@ class ChatRoomGUI(QMainWindow):
 
         self.closeEvent = functools.partial(closeEvent, self)
 
+        centerWindow(self)
+
     # Create chatroom
     def create_button_execute(self):
         self.closeEvent = None
@@ -207,7 +210,7 @@ class ChatRoomGUI(QMainWindow):
             self.available_rooms_label.show()
             self.join_rooms_label.show()
             self.room_combo_box.show()
-            
+
             self.room_combo_box.clear()
 
             room_data = room_data.splitlines()
@@ -398,6 +401,7 @@ class ChatWindow(QWidget):
         self.disconnect_button.clicked.connect(self.disconnect_from_room)
         layout.addWidget(self.disconnect_button)
 
+        centerWindow(self)
         self.closeEvent = functools.partial(disconnectEvent, self)
 
     def send_message(self):
@@ -444,6 +448,18 @@ def disconnectEvent(self, event):
         print("Error disconnecting from room:", e)
     finally:
         event.accept()
+
+
+def centerWindow(GUI):
+    # Get the screen geometry
+    screenGeometry = QDesktopWidget().screenGeometry()
+
+    # Calculate the center point of the screen
+    x = (screenGeometry.width() - GUI.width()) // 2
+    y = (screenGeometry.height() - GUI.height()) // 2
+
+    # Move the window to the center of the screen
+    GUI.move(x, y)
 
 
 def main():
