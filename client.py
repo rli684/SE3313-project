@@ -320,6 +320,12 @@ class ChatRoomGUI(QMainWindow):
                         "Connection Error",
                         "There are no rooms available. Create your own room or wait for others to create a room.",
                     )
+                elif server_response == "EXISTING_USER":
+                    QMessageBox.warning(
+                        self,
+                        "Connection Error",
+                        "This username already exists in this chatroom. Please select a new username.",
+                    )
                 else:
                     # Handle other server responses
                     QMessageBox.warning(
