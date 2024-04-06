@@ -351,12 +351,28 @@ public:
 
 int main(void)
 {
-    cout << "I am a server." << endl;                   // initial server message
-    SocketServer server(3000);                          // creates server socket listening on port 3000
+    cout << "I am a server." << endl;   // initial server message
+    SocketServer server(3000);  // creates server socket listening on port 3000
     ServerThread serverOpThread(server, chatroomBytes); // creates server operation thread
-    FlexWait cinWaiter(1, stdin);                       // waits for input to shutdown
-    cinWaiter.Wait();                                   // waits for any input
-    cin.get();                                          // gets the input (for shutdown)
-    server.Shutdown();                                  // shuts down the server
-    return 0;                                           // exits the program
+    cout << "Type 'SHUTDOWN' to shut down the server." << endl;
+    // Wait for 'SHUTDOWN' keyword to shutdow
+    string input;
+    while (true) {
+        getline(cin, input); // Read the entire line of input
+        if (input == "SHUTDOWN") {
+            cout << "Shutting down the server..." << endl;
+            // Send shutdown message to all connected clients
+            Sync::ByteArray shutdownMessage = Sync::ByteArray("SERVER_SHUTDOWN");
+            for (auto &clientSocket : connectedClients) {
+                (*clientSocket).Write(shutdownMessage);
+            }
+            server.Shutdown();               // shut down the serve
+            break;
+        }
+        else
+        {
+            cout << "Type 'SHUTDOWN' to shut down the server." << endl;
+        }
+    }
+    return 0;      // exits the program
 }

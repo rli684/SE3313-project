@@ -16,16 +16,16 @@ from PyQt5.QtWidgets import (
     QLineEdit,
     QComboBox,
     QMessageBox,
-    QDesktopWidget
+    QDesktopWidget,
 )
 from PyQt5.QtGui import QIcon
-from PyQt5.QtCore import QTimer
+from PyQt5.QtCore import QTimer, pyqtSignal
 import select
 
 # Begin class
-
-
 class ChatRoomGUI(QMainWindow):
+    
+    server_shutdown_signal = pyqtSignal()
 
     # Initialization
     def __init__(self):
@@ -33,7 +33,17 @@ class ChatRoomGUI(QMainWindow):
         self.initUI()
         self.client_socket = self.connect_to_server()  # Initialize socket connection
         self.running = True
-
+        self.server_shutdown_signal.connect(self.handle_server_shutdown)
+        
+    # Slot to handle server shutdown
+    def handle_server_shutdown(self):
+        QMessageBox.warning(
+            self, "Server Shutdown", "The server has been shutdown. Now exiting"
+        )
+        if hasattr(self, 'chat_window'):
+            self.chat_window.close()
+        self.close()
+        
     # GUI settings
     def initUI(self):
 
@@ -151,6 +161,8 @@ class ChatRoomGUI(QMainWindow):
                         if (message.split(";")[0] == "UPDATE_DATA"):
                             message = message.split("UPDATE_DATA;")[1]
                             self.populate_room_info(message)
+                        if (message == "SERVER_SHUTDOWN"):
+                            self.server_shutdown_signal.emit()
         except Exception as e:
             print("Error checking for messages:", e)
 
@@ -377,9 +389,12 @@ class ChatRoomGUI(QMainWindow):
             try:
                 message = self.client_socket.recv(
                     1024).decode()  # Receive message from server
+                print(message)
                 messages = message.splitlines()
                 if message:  # Check if message is not empty
-                    if (len(messages) == 1 and message.split(";")[0] == "UPDATE_DATA"):
+                    if (message == "SERVER_SHUTDOWN"):
+                        self.server_shutdown_signal.emit()
+                    if (len(message.split("MESSAGE;")) == 1 and message.split(";")[0] == "UPDATE_DATA"):
                         continue
                     message = message.split("MESSAGE;")[1]
                     if (len(message.split("UPDATE_DATA")) > 1):
