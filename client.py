@@ -19,9 +19,12 @@ from PyQt5.QtWidgets import (
     QDesktopWidget
 )
 from PyQt5.QtGui import QIcon
-
+from PyQt5.QtCore import QTimer
+import select
 
 # Begin class
+
+
 class ChatRoomGUI(QMainWindow):
 
     # Initialization
@@ -132,6 +135,25 @@ class ChatRoomGUI(QMainWindow):
 
         centerWindow(self)
 
+    def start_message_check_timer(self):
+        self.message_check_timer = QTimer()
+        self.message_check_timer.timeout.connect(self.check_for_messages)
+        self.message_check_timer.start(1000)  # Check for messages every second
+
+    def check_for_messages(self):
+        try:
+            sockets_to_check = [self.client_socket]
+            readable, _, _ = select.select(sockets_to_check, [], [], 0)
+            for sock in readable:
+                if sock == self.client_socket:
+                    message = self.client_socket.recv(1024).decode()
+                    if message:
+                        if (message.split(";")[0] == "UPDATE_DATA"):
+                            message = message.split("UPDATE_DATA;")[1]
+                            self.populate_room_info(message)
+        except Exception as e:
+            print("Error checking for messages:", e)
+
     # Create chatroom
     def create_button_execute(self):
         self.closeEvent = None
@@ -162,6 +184,7 @@ class ChatRoomGUI(QMainWindow):
             print("Server response:", server_response)  # Debugging statement
 
             if server_response == "CREATE_SUCCESS":
+                self.message_check_timer.stop()
                 print("Creating room success")  # Debugging statement
                 # If the response is positive, proceed to open the chat window
                 self.close()  # Close the main window
@@ -194,6 +217,7 @@ class ChatRoomGUI(QMainWindow):
             print("Connected to the server.")
             room_data = self.client_socket.recv(1024).decode()
             self.populate_room_info(room_data)
+            self.start_message_check_timer()
             return self.client_socket
         except Exception as e:
             print("Error connecting to the server:", e)
@@ -202,7 +226,7 @@ class ChatRoomGUI(QMainWindow):
     # Populate available rooms
     def populate_room_info(self, room_data):
         try:
-            if (room_data == "NO_ROOMS"):
+            if (room_data == "NO_ROOMS" or room_data == ""):
                 self.available_rooms_label.hide()
                 self.join_rooms_label.hide()
                 self.room_combo_box.hide()
@@ -293,6 +317,7 @@ class ChatRoomGUI(QMainWindow):
                 print("Server response:", server_response)
 
                 if server_response == "JOIN_SUCCESS":
+                    self.message_check_timer.stop()
                     print("Joining room success")  # Debugging statement
                     # If the response is positive, proceed to open the chat window
                     self.close()  # Close the main window
@@ -352,8 +377,13 @@ class ChatRoomGUI(QMainWindow):
             try:
                 message = self.client_socket.recv(
                     1024).decode()  # Receive message from server
+                messages = message.splitlines()
                 if message:  # Check if message is not empty
-                    print("Received message:", message)
+                    if (len(messages) == 1 and message.split(";")[0] == "UPDATE_DATA"):
+                        continue
+                    message = message.split("MESSAGE;")[1]
+                    if (len(message.split("UPDATE_DATA")) > 1):
+                        message = message.split("UPDATE_DATA")[0]
                     # Split message into parts
                     parts = message.split(';')
                     # removing leading & trailing spaces

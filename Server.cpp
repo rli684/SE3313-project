@@ -23,6 +23,8 @@ struct ChatRoomStructure
     int max_users;
 };
 
+vector<Socket *> connectedClients;
+
 // Function to convert ChatRoom struct data into a byte array for sending over a socket
 std::vector<char> chatroomDataToByteArray(const ChatRoomStructure &room)
 {
@@ -63,11 +65,41 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoomStruct
     return allData;
 }
 
+void removeClient(Socket *clientSocket)
+{
+    // Find the position of the client socket in the array
+    auto it = std::find(connectedClients.begin(), connectedClients.end(), clientSocket);
+    if (it != connectedClients.end())
+    {
+        // Erase the client socket from the array
+        connectedClients.erase(it);
+    }
+}
+
 // Room name, Password, # of Current Users, Max Capacity
 std::vector<ChatRoomStructure> room_data{};
 
 // Get chatroom data as byte array
 std::vector<char> chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+
+void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socket &clientSocket)
+{
+    // Iterate through all connected clients
+    for (const auto &socket : connectedClients)
+    {
+        // Check if the current socket is not the client socket that initiated the update
+        if (*socket != clientSocket)
+        {
+            Sync::ByteArray sendData = Sync::ByteArray("UPDATE_DATA;");
+            (*socket).Write(sendData);
+            // Send the updated data to the current connected client
+            if (!room_data.empty())
+            {
+                (*socket).Write(updatedData);
+            }
+        }
+    }
+}
 
 // this class manages individual client connections in separate threads
 class SocketThreadIndividually : public Thread
@@ -128,6 +160,7 @@ public:
 
                 if (segments[0] == "DISCONNECT_ROOM")
                 {
+                    removeClient(&clientSocket);
                     string roomName = segments[1];
                     string sender = segments[2];
                     clientRoom = this->getRoom(roomName);
@@ -155,6 +188,8 @@ public:
                         }
                     }
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+                    Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
+                    sendUpdatedDataToAllClients(chatroomByteArray, clientSocket);
                     break;
                 }
                 else if (segments[0] == "MESSAGE_ROOM")
@@ -162,7 +197,7 @@ public:
                     string roomName = segments[1];
                     string message = segments[2];
                     string sender = segments[3];
-                    string final = sender + ";" + message;
+                    string final = "MESSAGE;" + sender + ";" + message;
                     clientRoom = this->getRoom(roomName);
                     clientRoom->broadcastMessage(final, sender);
                 }
@@ -172,6 +207,8 @@ public:
                     room_data.emplace_back(ChatRoomStructure{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
                     // Updating byte array of room data
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+                    Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
+                    sendUpdatedDataToAllClients(chatroomByteArray, clientSocket);
                     string roomName = segments[1];
                     string clientName = segments[5];
                     rooms.push_back(new ChatRoom(roomName));
@@ -210,6 +247,8 @@ public:
                                     }
                                     // Join room logic here (not detailed, as your focus is on password validation)
                                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
+                                    Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
+                                    sendUpdatedDataToAllClients(chatroomByteArray, clientSocket);
                                     clientRoom->addClient(clientName, &clientSocket);
                                     Sync::ByteArray sendData = Sync::ByteArray("JOIN_SUCCESS");
                                     clientSocket.Write(sendData);
@@ -236,6 +275,7 @@ public:
             }
             catch (...)
             {
+                std::cout << "here" << std ::endl;
                 // exception handling (silently ignores errors)
             }
         }
@@ -290,8 +330,9 @@ public:
         {
             try
             {
-                Socket *newConnection = new Socket(server.Accept());                            // accepts new client connection
-                Socket &socketRef = *newConnection;                                             // gets reference to the new socket
+                Socket *newConnection = new Socket(server.Accept()); // accepts new client connection
+                Socket &socketRef = *newConnection;                  // gets reference to the new socket
+                connectedClients.push_back(&socketRef);
                 clientThreads.push_back(new SocketThreadIndividually(socketRef, chatroomData)); // creates and stores new thread for client
                 clientThreads.back()->SendChatroomData();                                       // Send chatroom data to the new client
             }

@@ -99,7 +99,7 @@ void ChatRoom::setChatroomName(const string &newName)
 void ChatRoom::addClient(const string &name, Socket *socket)
 {
     clients.emplace_back(name, socket); // Pass Sync::Socket pointer
-    string message = "Server;" + name + " has joined the chatroom.";
+    string message = "MESSAGE;Server;" + name + " has joined the chatroom.";
     broadcastMessage(message, name);
 }
 
@@ -114,7 +114,7 @@ void ChatRoom::removeClientByName(const string &clientName)
         {
 
             it = clients.erase(it); // Erase element and update iterator
-            string message = "Server;" + clientName + " has left the chatroom.";
+            string message = "MESSAGE;Server;" + clientName + " has left the chatroom.";
             std::cout << message << std::endl;
             broadcastMessage(message, clientName);
             return; // Assuming each client has a unique name, so we can return after erasing one client
