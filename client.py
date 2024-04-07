@@ -90,6 +90,7 @@ class ChatRoomGUI(QMainWindow):
         self.create_server_password_label = QLabel(
             "Chatroom Password (Optional):")
         self.create_server_password = QLineEdit()
+        self.create_server_password.setEchoMode(QLineEdit.Password)
         layout.addWidget(self.create_server_password_label)
         layout.addWidget(self.create_server_password)
 
@@ -129,6 +130,7 @@ class ChatRoomGUI(QMainWindow):
         # Password field
         self.password_label = QLabel("Password:")
         self.password_field = QLineEdit()
+        self.password_field.setEchoMode(QLineEdit.Password)
         self.password_label.hide()
         self.password_field.hide()
         layout.addWidget(self.password_label)
@@ -174,7 +176,7 @@ class ChatRoomGUI(QMainWindow):
                     message = self.client_socket.recv(1024).decode()
                     if message:
                         if (message.split(";")[0] == "UPDATE_DATA"):
-                            message = message.split("UPDATE_DATA;")[1]
+                            message = message.split("UPDATE_DATA;")[1].strip()
                             self.populate_room_info(message)
                         if (message == "SERVER_SHUTDOWN"):
                             self.server_shutdown_signal.emit()
@@ -261,6 +263,9 @@ class ChatRoomGUI(QMainWindow):
                 self.available_rooms_label.hide()
                 self.join_rooms_label.hide()
                 self.room_combo_box.hide()
+                self.password_field.hide()
+                self.password_field.clear()
+                self.password_label.hide()
                 return
             self.available_rooms_label.show()
             self.join_rooms_label.show()
@@ -411,7 +416,6 @@ class ChatRoomGUI(QMainWindow):
         while self.running:
             try:
                 self.client_socket.settimeout(1)
-                print("here")
                 message = self.client_socket.recv(
                     1024).decode()  # Receive message from server
                 print(message)
@@ -420,7 +424,10 @@ class ChatRoomGUI(QMainWindow):
                     if (message == "SERVER_SHUTDOWN"):
                         self.server_shutdown_signal.emit()
                     if (len(message.split("MESSAGE;")) == 1):
-                        print("here")
+                        if(len(message.split("UPDATE_DATA;")) > 1):
+                            message = message.split("UPDATE_DATA;")[1].strip()
+                            self.populate_room_info(message)
+                            continue
                         continue
                     message = message.split("MESSAGE;")[1]
                     if (len(message.split("UPDATE_DATA")) > 1):
@@ -510,8 +517,11 @@ class ChatWindow(QWidget):
         self.parent.send_disconnect_on_close = True
         self.close()
         self.parent.show()
-
-
+        self.parent.create_server_name.clear()
+        self.parent.create_server_password.clear()
+        self.parent.password_field.clear()
+        self.parent.slider.setValue(2)
+        
 def centerWindow(GUI):
     # Get the screen geometry
     screenGeometry = QDesktopWidget().screenGeometry()
