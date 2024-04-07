@@ -23,27 +23,30 @@ from PyQt5.QtCore import QTimer, pyqtSignal
 import select
 
 # Begin class
+
+
 class ChatRoomGUI(QMainWindow):
-    
+
     server_shutdown_signal = pyqtSignal()
 
     # Initialization
     def __init__(self):
         super().__init__()
         self.initUI()
+        self.send_disconnect_on_close = True
         self.client_socket = self.connect_to_server()  # Initialize socket connection
         self.running = True
         self.server_shutdown_signal.connect(self.handle_server_shutdown)
-        
+
     # Slot to handle server shutdown
     def handle_server_shutdown(self):
         QMessageBox.warning(
-            self, "Server Shutdown", "The server has been shutdown. Now exiting"
+            self, "Server Shutdown", "The server has been shutdown. Now exiting..."
         )
         if hasattr(self, 'chat_window'):
             self.chat_window.close()
         self.close()
-        
+
     # GUI settings
     def initUI(self):
 
@@ -140,10 +143,22 @@ class ChatRoomGUI(QMainWindow):
         self.room_combo_box.currentIndexChanged.connect(
             self.update_connect_button_state
         )
-
-        self.closeEvent = functools.partial(closeEvent, self)
-
+        
         centerWindow(self)
+
+    def closeEvent(self, event):
+        try:
+            if self.client_socket and self.send_disconnect_on_close:
+                print("Sending disconnect message...")
+                self.client_socket.send("DISCONNECT".encode())
+                # Wait for a brief moment to ensure the message is sent
+                time.sleep(0.1)
+                print("Closing socket...")
+                self.client_socket.close()
+        except Exception as e:
+            print("Error disconnecting from room:", e)
+        finally:
+            event.accept()
 
     def start_message_check_timer(self):
         self.message_check_timer = QTimer()
@@ -168,7 +183,6 @@ class ChatRoomGUI(QMainWindow):
 
     # Create chatroom
     def create_button_execute(self):
-        self.closeEvent = None
         try:
             # Get room information from input fields
             room_name = self.create_server_name.text()
@@ -190,19 +204,24 @@ class ChatRoomGUI(QMainWindow):
             # 1 for the user creating the room
             message = f"CREATE_ROOM;{room_name};{room_password};1;{lobby_size};{username}".encode(
             )
+            print("here2")
             self.client_socket.send(message)
             # Now, wait for the server's response
             server_response = self.client_socket.recv(1024).decode()
             print("Server response:", server_response)  # Debugging statement
 
             if server_response == "CREATE_SUCCESS":
-                self.message_check_timer.stop()
                 print("Creating room success")  # Debugging statement
                 # If the response is positive, proceed to open the chat window
+                self.send_disconnect_on_close = False
                 self.close()  # Close the main window
                 self.open_chat_window(room_name, username)
                 # Start a new thread for message listening
-                threading.Thread(target=self.receive_messages).start()
+                if(not hasattr(self,"listening")):
+                    self.listening = threading.Thread(target=self.receive_messages).start()
+                elif(self.running==False):
+                    self.running = True
+                    self.listening = threading.Thread(target=self.receive_messages).start()
             else:
                 # Handle other server responses
                 QMessageBox.warning(
@@ -297,7 +316,6 @@ class ChatRoomGUI(QMainWindow):
 
     # Connecting to room
     def connect_to_room(self):
-        self.closeEvent = None
         selected_index = self.room_combo_box.currentIndex()
         selected_room_info = self.room_combo_box.itemText(selected_index)
         password = self.password_field.text()
@@ -329,13 +347,18 @@ class ChatRoomGUI(QMainWindow):
                 print("Server response:", server_response)
 
                 if server_response == "JOIN_SUCCESS":
-                    self.message_check_timer.stop()
                     print("Joining room success")  # Debugging statement
                     # If the response is positive, proceed to open the chat window
+                    self.send_disconnect_on_close = False
                     self.close()  # Close the main window
                     self.open_chat_window(room_name, username)
                     # Start a new thread for message listening
-                    threading.Thread(target=self.receive_messages).start()
+                    if(not hasattr(self,"listening")):
+                        self.listening = threading.Thread(target=self.receive_messages).start()
+                    elif(self.running==False):
+                        self.running = True
+                        self.listening = threading.Thread(target=self.receive_messages).start()
+                        
                 elif server_response == "INVALID_PASSWORD":
                     # Handle invalid password scenario
                     QMessageBox.warning(
@@ -387,6 +410,8 @@ class ChatRoomGUI(QMainWindow):
     def receive_messages(self):
         while self.running:
             try:
+                self.client_socket.settimeout(1)
+                print("here")
                 message = self.client_socket.recv(
                     1024).decode()  # Receive message from server
                 print(message)
@@ -394,7 +419,8 @@ class ChatRoomGUI(QMainWindow):
                 if message:  # Check if message is not empty
                     if (message == "SERVER_SHUTDOWN"):
                         self.server_shutdown_signal.emit()
-                    if (len(message.split("MESSAGE;")) == 1 and message.split(";")[0] == "UPDATE_DATA"):
+                    if (len(message.split("MESSAGE;")) == 1):
+                        print("here")
                         continue
                     message = message.split("MESSAGE;")[1]
                     if (len(message.split("UPDATE_DATA")) > 1):
@@ -407,6 +433,8 @@ class ChatRoomGUI(QMainWindow):
                     # Process the received message, update GUI, etc.
                     # Call a method to handle received messages
                     self.process_received_message(f"{username}: {message}")
+            except socket.timeout:
+                pass
             except Exception as e:
                 print(e)
                 break  # Break the loop if there's an error or connection is closed
@@ -453,7 +481,19 @@ class ChatWindow(QWidget):
         layout.addWidget(self.disconnect_button)
 
         centerWindow(self)
-        self.closeEvent = functools.partial(disconnectEvent, self)
+        
+    def closeEvent(self, event):
+        try:
+            if self.client_socket:
+                self.parent.running = False
+                print("Sending disconnect room message...")
+                self.client_socket.send(
+                    f"DISCONNECT_ROOM;{self.room_name};{self.username}".encode())
+        except Exception as e:
+            print("Error disconnecting from room:", e)
+        finally:
+            self.disconnect_from_room()
+
 
     def send_message(self):
         message = self.text_input.text()
@@ -467,38 +507,9 @@ class ChatWindow(QWidget):
         self.text_input.clear()
 
     def disconnect_from_room(self):
+        self.parent.send_disconnect_on_close = True
         self.close()
-
-
-def closeEvent(self, event):
-    try:
-        if self.client_socket:
-            print("Sending disconnect message...")
-            self.client_socket.send("DISCONNECT".encode())
-            # Wait for a brief moment to ensure the message is sent
-            time.sleep(0.1)
-            print("Closing socket...")
-            self.client_socket.close()
-    except Exception as e:
-        print("Error disconnecting from room:", e)
-    finally:
-        event.accept()
-
-
-def disconnectEvent(self, event):
-    try:
-        if self.client_socket:
-            print("Sending disconnect message...")
-            self.client_socket.send(
-                f"DISCONNECT_ROOM;{self.room_name};{self.username}".encode())
-            # Wait for a brief moment to ensure the message is sent
-            time.sleep(0.1)
-            print("Closing socket...")
-            self.client_socket.close()
-    except Exception as e:
-        print("Error disconnecting from room:", e)
-    finally:
-        event.accept()
+        self.parent.show()
 
 
 def centerWindow(GUI):

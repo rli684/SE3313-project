@@ -82,13 +82,13 @@ std::vector<ChatRoomStructure> room_data{};
 // Get chatroom data as byte array
 std::vector<char> chatroomBytes = getAllChatroomDataAsByteArray(room_data);
 
-void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socket &clientSocket)
+void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socket &clientSocket, const bool sendClient = false)
 {
     // Iterate through all connected clients
     for (const auto &socket : connectedClients)
     {
         // Check if the current socket is not the client socket that initiated the update
-        if (*socket != clientSocket)
+        if (*socket != clientSocket || sendClient)
         {
             Sync::ByteArray sendData = Sync::ByteArray("UPDATE_DATA;");
             (*socket).Write(sendData);
@@ -145,6 +145,7 @@ public:
                 string receivedMsg = incomingData.ToString();
                 if (receivedMsg == "DISCONNECT")
                 {
+                    removeClient(&clientSocket);
                     break;
                 }
 
@@ -160,7 +161,6 @@ public:
 
                 if (segments[0] == "DISCONNECT_ROOM")
                 {
-                    removeClient(&clientSocket);
                     string roomName = segments[1];
                     string sender = segments[2];
                     clientRoom = this->getRoom(roomName);
@@ -189,8 +189,7 @@ public:
                     }
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
-                    sendUpdatedDataToAllClients(chatroomByteArray, clientSocket);
-                    break;
+                    sendUpdatedDataToAllClients(chatroomByteArray, clientSocket, true);
                 }
                 else if (segments[0] == "MESSAGE_ROOM")
                 {
@@ -351,22 +350,25 @@ public:
 
 int main(void)
 {
-    cout << "I am a server." << endl;   // initial server message
-    SocketServer server(3000);  // creates server socket listening on port 3000
+    cout << "I am a server." << endl;                   // initial server message
+    SocketServer server(3000);                          // creates server socket listening on port 3000
     ServerThread serverOpThread(server, chatroomBytes); // creates server operation thread
     cout << "Type 'SHUTDOWN' to shut down the server." << endl;
     // Wait for 'SHUTDOWN' keyword to shutdow
     string input;
-    while (true) {
+    while (true)
+    {
         getline(cin, input); // Read the entire line of input
-        if (input == "SHUTDOWN") {
+        if (input == "SHUTDOWN")
+        {
             cout << "Shutting down the server..." << endl;
             // Send shutdown message to all connected clients
             Sync::ByteArray shutdownMessage = Sync::ByteArray("SERVER_SHUTDOWN");
-            for (auto &clientSocket : connectedClients) {
+            for (auto &clientSocket : connectedClients)
+            {
                 (*clientSocket).Write(shutdownMessage);
             }
-            server.Shutdown();               // shut down the serve
+            server.Shutdown(); // shut down the serve
             break;
         }
         else
@@ -374,5 +376,5 @@ int main(void)
             cout << "Type 'SHUTDOWN' to shut down the server." << endl;
         }
     }
-    return 0;      // exits the program
+    return 0; // exits the program
 }
