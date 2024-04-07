@@ -13,8 +13,11 @@
 using namespace Sync;
 using namespace std;
 
+// global variable declarations
 vector<ChatRoom *> rooms;
+vector<Socket *> connectedClients;
 
+// structure for the chat room consisting of name, password, # of current users, and max user size
 struct ChatRoomStructure
 {
     std::string name;
@@ -23,36 +26,34 @@ struct ChatRoomStructure
     int max_users;
 };
 
-vector<Socket *> connectedClients;
-
-// Function to convert ChatRoom struct data into a byte array for sending over a socket
+// function that converts ChatRoom struct data into a byte array for sending over a socket
 std::vector<char> chatroomDataToByteArray(const ChatRoomStructure &room)
 {
     std::vector<char> data;
-    // Convert name to bytes and append to data
+    // converts name to bytes and append to data
     data.insert(data.end(), room.name.begin(), room.name.end());
-    data.push_back(';'); // Add delimiter
+    data.push_back(';'); // add delimiter
 
-    // Convert password to bytes and append to data if the room is locked
+    // converts password to bytes and append to data if the room is locked
     if (room.password != "")
     {
         data.insert(data.end(), room.password.begin(), room.password.end());
     }
-    data.push_back(';'); // Add delimiter
+    data.push_back(';'); // add delimiter
 
-    // Convert current_users to bytes and append to data
+    // convert current_users to bytes and append to data
     std::string current_users_str = std::to_string(room.current_users);
     data.insert(data.end(), current_users_str.begin(), current_users_str.end());
-    data.push_back(';'); // Add delimiter
+    data.push_back(';'); // add delimiter
 
-    // Convert max_users to bytes and append to data
+    // converting max_users to bytes and appending to data
     std::string max_users_str = std::to_string(room.max_users);
     data.insert(data.end(), max_users_str.begin(), max_users_str.end());
 
     return data;
 }
 
-// Function to loop through an array of ChatRoom structs and return the data in a byte array format
+// function to loop through an array of ChatRoom structs and return the data in a byte array format
 std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoomStructure> &rooms)
 {
     std::vector<char> allData{};
@@ -60,39 +61,40 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoomStruct
     {
         std::vector<char> roomData = chatroomDataToByteArray(room);
         allData.insert(allData.end(), roomData.begin(), roomData.end());
-        allData.push_back('\n'); // Add newline delimiter between room data
+        allData.push_back('\n'); // add newline delimiter between room data
     }
     return allData;
 }
 
+
+// function to remove clients from chat room when they leave/disconnect
 void removeClient(Socket *clientSocket)
 {
-    // Find the position of the client socket in the array
+    // find the position of the client socket in the array
     auto it = std::find(connectedClients.begin(), connectedClients.end(), clientSocket);
     if (it != connectedClients.end())
     {
-        // Erase the client socket from the array
+        // erase the client socket from the array
         connectedClients.erase(it);
     }
 }
 
-// Room name, Password, # of Current Users, Max Capacity
+// Room name, Password, # of Current Users, Max Capacity, are parameters to the room_data
 std::vector<ChatRoomStructure> room_data{};
 
-// Get chatroom data as byte array
+// get chatroom data as byte array
 std::vector<char> chatroomBytes = getAllChatroomDataAsByteArray(room_data);
 
 void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socket &clientSocket, const bool sendClient = false)
 {
-    // Iterate through all connected clients
+    // iterate through all connected clients
     for (const auto &socket : connectedClients)
     {
-        // Check if the current socket is not the client socket that initiated the update
-        if (*socket != clientSocket || sendClient)
+        if (*socket != clientSocket || sendClient) // current socket is not the client that initiated update
         {
-            Sync::ByteArray sendData = Sync::ByteArray("UPDATE_DATA;");
+            Sync::ByteArray sendData = Sync::ByteArray("UPDATE_DATA;"); // update all other clients when users disconnect from room
             (*socket).Write(sendData);
-            // Send the updated data to the current connected client
+            // send the updated data to the current connected client
             if (!room_data.empty())
             {
                 (*socket).Write(updatedData);
@@ -172,7 +174,7 @@ public:
 
                         if (it != rooms.end())
                         {
-                            // Erase the element using the iterator
+                            // erase the element using the iterator
                             rooms.erase(it);
                         }
                         room_data.erase(std::remove_if(room_data.begin(), room_data.end(), [&](const ChatRoomStructure &obj)
@@ -184,25 +186,25 @@ public:
                     {
                         if (room.name == roomName)
                         {
-                            room.current_users--; // Increment current_users by one
+                            room.current_users--; // increment current_users by one, frees up space for another user to join
                         }
                     }
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
                     sendUpdatedDataToAllClients(chatroomByteArray, clientSocket, true);
                 }
-                else if (segments[0] == "MESSAGE_ROOM")
+                else if (segments[0] == "MESSAGE_ROOM") // message byteArray was sent, process the message
                 {
                     string roomName = segments[1];
                     string message = segments[2];
                     string sender = segments[3];
                     string final = "MESSAGE;" + sender + ";" + message;
                     clientRoom = this->getRoom(roomName);
-                    clientRoom->broadcastMessage(final, sender);
+                    clientRoom->broadcastMessage(final, sender); // broadcast the message to all other users to view live chat
                 }
-                else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation
+                else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation byteArray received, process it
                 {
-                    // Pushing new room to room list
+                    // pushing new room to room list
                     room_data.emplace_back(ChatRoomStructure{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
                     // Updating byte array of room data
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
