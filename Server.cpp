@@ -176,7 +176,7 @@ public:
 
                 if (segments[0] == "DISCONNECT_ROOM")
                 {
-                    connectedClients.push_back(clientSocket);
+                    connectedClients.push_back(&clientSocket);
                     string roomName = segments[1];
                     string sender = segments[2];
 
@@ -252,7 +252,6 @@ public:
                         {
                             if ((segments[2] == "NO_PASSWORD" || room.password == segments[2]) && room.current_users < room.max_users) // successful room connection
                             {
-                                removeClient(&clientSocket);
                                 string roomName = segments[1];
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
@@ -268,6 +267,7 @@ public:
                                 }
                                 else
                                 {
+                                    removeClient(&clientSocket);
                                     for (auto &room : room_data)
                                     {
                                         if (room.name == roomName)
