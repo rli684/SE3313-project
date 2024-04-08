@@ -11,21 +11,23 @@ To run the chatroom, you have two options:
 1. Clone the repository to your local machine.
 2. Install Python if you haven't already.
 3. Install the Python dependency PyQt5. You can do this using pip:
+
    ```bash
    pip install pyqt
    ```
-4. Run the ```bash client.py``` file.
+4. Run the ```client.py``` file.
 
 ### Option 2: Download the Executable
 1. Download the executable from the GitHub repository.
 2. Open Command Prompt in Windows.
 3. Navigate to the directory containing the executable.
 4. Run the executable using the following command:
+
    ```bash
    cmd /K client.exe
    ```
 
-Both options will connect you to the Chatroom Whisperers server hosted at ```bash 54.163.37.13``` on port ```bash 2004 ```, which is hosted on an AWS service.
+Both options will connect you to the Chatroom Whisperers server hosted at ```54.163.37.13``` on port ```2004```, which is hosted on an AWS service.
 
 ## Usage
 
