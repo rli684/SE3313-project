@@ -3,6 +3,8 @@
 
 #include <string>
 #include <vector>
+#include <mutex>
+
 #include "socket.h"
 #include "thread.h"
 
@@ -23,6 +25,7 @@ private:
 
     vector<ClientInfo> clients;
     string name;
+    std::mutex mutex; // Mutex to protect access to chat room data
 
 public:
     bool isActive = true;
@@ -55,6 +58,8 @@ public:
     string getClientNameBySocket(const Sync::Socket &clientSocket) const;
 
     vector<string> getMessagesByClientName(const string &clientName) const;
+
+    std::mutex &getMutex();
 };
 
 #endif // CHATROOM_H

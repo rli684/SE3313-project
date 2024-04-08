@@ -66,7 +66,6 @@ std::vector<char> getAllChatroomDataAsByteArray(const std::vector<ChatRoomStruct
     return allData;
 }
 
-
 // function to remove clients from chat room when they leave/disconnect
 void removeClient(Socket *clientSocket)
 {
@@ -102,6 +101,11 @@ void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socke
         }
     }
 }
+
+std::mutex roomsMutex;         // Mutex to protect room_data
+std::mutex roomDataMutex;      // Mutex to protect room_data
+std::mutex chatroomBytesMutex; // Mutex to protect chatroomBytes
+std::mutex connectedClientsMutex;
 
 // this class manages individual client connections in separate threads
 class SocketThreadIndividually : public Thread
@@ -145,6 +149,12 @@ public:
             {
                 clientSocket.Read(incomingData); // reads data from client
                 string receivedMsg = incomingData.ToString();
+
+                std::lock_guard<std::mutex> roomsLocks(roomsMutex);
+                std::lock_guard<std::mutex> roomDataLock(roomDataMutex);
+                std::lock_guard<std::mutex> chatroomBytesLock(chatroomBytesMutex);
+                std::lock_guard<std::mutex> connectClientsLock(connectedClientsMutex);
+
                 if (receivedMsg == "DISCONNECT")
                 {
                     removeClient(&clientSocket);
@@ -165,7 +175,12 @@ public:
                 {
                     string roomName = segments[1];
                     string sender = segments[2];
+
                     clientRoom = this->getRoom(roomName);
+
+                    std::mutex &roomMutex = clientRoom->getMutex(); // Dereference the pointer
+                    std::lock_guard<std::mutex> lock(roomMutex);
+
                     clientRoom->removeClientByName(sender);
                     int num = clientRoom->getClientCount();
                     if (num == 0)
@@ -200,20 +215,25 @@ public:
                     string sender = segments[3];
                     string final = "MESSAGE;" + sender + ";" + message;
                     clientRoom = this->getRoom(roomName);
+                    std::mutex &roomMutex = clientRoom->getMutex(); // Dereference the pointer
+                    std::lock_guard<std::mutex> lock(roomMutex);
                     clientRoom->broadcastMessage(final, sender); // broadcast the message to all other users to view live chat
                 }
                 else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation byteArray received, process it
                 {
+
+                    string roomName = segments[1];
+                    string clientName = segments[5];
+                    rooms.push_back(new ChatRoom(roomName));
+                    clientRoom = this->getRoom(roomName);
+                    std::mutex &roomMutex = clientRoom->getMutex(); // Dereference the pointer
+                    std::lock_guard<std::mutex> lock(roomMutex);
                     // pushing new room to room list
                     room_data.emplace_back(ChatRoomStructure{segments[1], segments[2], std::stoi(segments[3]), std::stoi(segments[4])});
                     // Updating byte array of room data
                     chatroomBytes = getAllChatroomDataAsByteArray(room_data);
                     Sync::ByteArray chatroomByteArray(chatroomData.data(), chatroomData.size());
                     sendUpdatedDataToAllClients(chatroomByteArray, clientSocket);
-                    string roomName = segments[1];
-                    string clientName = segments[5];
-                    rooms.push_back(new ChatRoom(roomName));
-                    clientRoom = this->getRoom(roomName);
                     clientRoom->addClient(clientName, &clientSocket);
                     Sync::ByteArray sendData = Sync::ByteArray("CREATE_SUCCESS");
                     clientSocket.Write(sendData);
@@ -232,6 +252,10 @@ public:
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
                                 clientRoom = this->getRoom(roomName);
+
+                                std::mutex &roomMutex = clientRoom->getMutex(); // Dereference the pointer
+                                std::lock_guard<std::mutex> lock(roomMutex);
+
                                 if (clientRoom->existingUser(clientName))
                                 {
                                     Sync::ByteArray sendData = Sync::ByteArray("EXISTING_USER");
@@ -333,6 +357,10 @@ public:
             {
                 Socket *newConnection = new Socket(server.Accept()); // accepts new client connection
                 Socket &socketRef = *newConnection;                  // gets reference to the new socket
+                std::lock_guard<std::mutex> roomsLocks(roomsMutex);
+                std::lock_guard<std::mutex> roomDataLock(roomDataMutex);
+                std::lock_guard<std::mutex> chatroomBytesLock(chatroomBytesMutex);
+                std::lock_guard<std::mutex> connectClientsLock(connectedClientsMutex);
                 connectedClients.push_back(&socketRef);
                 clientThreads.push_back(new SocketThreadIndividually(socketRef, chatroomData)); // creates and stores new thread for client
                 clientThreads.back()->SendChatroomData();                                       // Send chatroom data to the new client
@@ -353,7 +381,7 @@ public:
 int main(void)
 {
     cout << "I am a server." << endl;                   // initial server message
-    SocketServer server(3000);                          // creates server socket listening on port 3000
+    SocketServer server(2004);                          // creates server socket listening on port 3000
     ServerThread serverOpThread(server, chatroomBytes); // creates server operation thread
     cout << "Type 'SHUTDOWN' to shut down the server." << endl;
     // Wait for 'SHUTDOWN' keyword to shutdow

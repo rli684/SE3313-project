@@ -55,32 +55,6 @@ long ChatRoom::ThreadMain()
         // Main loop of the chatroom
         while (this->isActive)
         {
-            // // Check for incoming messages from clients
-            // for (auto &client : clients)
-            // {
-
-            //     ByteArray receivedData;
-            //     int bytesRead = client.socket->Read(receivedData);
-            //     std::cout << receivedData.ToString() << std::endl;
-            //     if (bytesRead > 0)
-            //     {
-            //         string message = receivedData.ToString();
-            //         // Broadcast the received message to all clients except the sender
-            //         string final = client.name + ";" + message;
-            //         std::cout << final << std::endl;
-            //         broadcastMessage(final, client.name);
-            //     }
-            //     else
-            //     {
-            //         std::cout << "im here" << std::endl;
-            //         // Client disconnected
-            //         removeClientByName(client.name);
-            //         break;
-            //     }
-            // }
-
-            // // Sleep for a short time to avoid busy-waiting
-            // usleep(1000); // Sleep for 1 millisecond
         }
     }
     catch (TerminationException error)
@@ -192,4 +166,9 @@ vector<string> ChatRoom::getMessagesByClientName(const string &clientName) const
         return it->messages;
     }
     return {}; // Return empty vector if client not found
+}
+
+std::mutex &ChatRoom::getMutex()
+{
+    return mutex;
 }
