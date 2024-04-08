@@ -319,6 +319,12 @@ public:
         return 0;
     }
 
+    // Getter method to retrieve the client socket
+    Socket &getClientSocket() const
+    {
+        return clientSocket;
+    }
+
     void SendChatroomData() // Function to send chat room data to client
     {
         if (room_data.empty()) // Check if there are no chat rooms
@@ -388,6 +394,16 @@ public:
         }
         return 1; // Return generic error code
     }
+
+    // Function to send shutdown message to all connected clients
+    void sendShutdownMessageToAllClients()
+    {
+        Sync::ByteArray shutdownMessage = Sync::ByteArray("SERVER_SHUTDOWN"); // Create shutdown message
+        for (auto &clientThread : clientThreads)                              // Loop through client threads
+        {
+            clientThread->getClientSocket().Write(shutdownMessage); // Send shutdown message to client thread's socket
+        }
+    }
 };
 
 int main(void)
@@ -405,11 +421,7 @@ int main(void)
         {
             cout << "Shutting down the server..." << endl; // Output shutdown message
             // Send shutdown message to all connected clients
-            Sync::ByteArray shutdownMessage = Sync::ByteArray("SERVER_SHUTDOWN"); // Create shutdown message
-            for (auto &clientSocket : connectedClients)                           // Loop through connected clients
-            {
-                (*clientSocket).Write(shutdownMessage); // Send shutdown message to client
-            }
+            serverOpThread.sendShutdownMessageToAllClients();
             server.Shutdown(); // Shutdown the server
             break;             // Exit the loop
         }
