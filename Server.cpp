@@ -91,13 +91,16 @@ void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socke
     {
         if (*socket != clientSocket || sendClient) // current socket is not the client that initiated update
         {
-            Sync::ByteArray sendData = Sync::ByteArray("UPDATE_DATA;"); // update all other clients when users disconnect from room
-            (*socket).Write(sendData);
+            std::ostringstream os;
+            os << "UPDATE_DATA;";
             // send the updated data to the current connected client
             if (!room_data.empty())
             {
-                (*socket).Write(updatedData);
+                os << updatedData.ToString() << endl;
             }
+            cout << os.str() << endl;
+            Sync::ByteArray sendData = Sync::ByteArray(os.str());
+            (*socket).Write(sendData);
         }
     }
 }
@@ -173,6 +176,7 @@ public:
 
                 if (segments[0] == "DISCONNECT_ROOM")
                 {
+                    connectedClients.push_back(clientSocket);
                     string roomName = segments[1];
                     string sender = segments[2];
 
@@ -221,7 +225,7 @@ public:
                 }
                 else if (!segments.empty() && segments[0] == "CREATE_ROOM" && segments.size() == 6) // user room creation byteArray received, process it
                 {
-
+                    removeClient(&clientSocket);
                     string roomName = segments[1];
                     string clientName = segments[5];
                     rooms.push_back(new ChatRoom(roomName));
@@ -248,6 +252,7 @@ public:
                         {
                             if ((segments[2] == "NO_PASSWORD" || room.password == segments[2]) && room.current_users < room.max_users) // successful room connection
                             {
+                                removeClient(&clientSocket);
                                 string roomName = segments[1];
                                 string clientName = segments[3];
                                 // logic to loop through room threads to find which room has given name
