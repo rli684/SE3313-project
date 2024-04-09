@@ -292,8 +292,8 @@ class ChatRoomGUI(QMainWindow):
     def connect_to_server(self):
         try:
             # Establish a socket connection to the server
-            server_address = "54.163.37.131"  
-            server_port = 2004  
+            server_address = "3.89.83.172"  
+            server_port = 3000  
             self.client_socket = socket.socket(
                 socket.AF_INET, socket.SOCK_STREAM)
             self.client_socket.connect((server_address, server_port))
@@ -489,7 +489,6 @@ class ChatRoomGUI(QMainWindow):
                 self.client_socket.settimeout(1)
                 message = self.client_socket.recv(
                     1024).decode() 
-                print(message)
                 
                 # Message exists
                 if message: 

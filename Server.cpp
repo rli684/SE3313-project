@@ -103,7 +103,6 @@ void sendUpdatedDataToAllClients(const Sync::ByteArray &updatedData, const Socke
             {
                 os << updatedData.ToString() << endl; // Append updated data to message
             }
-            cout << os.str() << endl;                             // Output the update message
             Sync::ByteArray sendData = Sync::ByteArray(os.str()); // Create byte array from message
             (*socket).Write(sendData);                            // Write data to client socket
         }
