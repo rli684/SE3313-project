@@ -41,7 +41,7 @@ Once you've connected to the server, you can start chatting with other users who
 
 - **Set Up Max Lobby Size:** As a room owner, you can set up the maximum number of users allowed in the room (lobby size). This helps in managing the conversation flow and ensuring a better chat experience.
 
-- **Make Rooms Private:** If you want to restrict access to your room, you can make it private. Only users with the invitation or the room password can join.
+- **Make Rooms Private:** If you want to restrict access to your room, you can make it private. Only users with the room password can join.
 
 - **Customize Username/Server:** You have the option to customize your username and server preferences according to your liking. This adds a personal touch to your chat experience and helps in identifying users and servers easily.
 
