@@ -13,9 +13,13 @@ To run the chatroom, you have two options:
 3. Install the Python dependency PyQt5. You can do this using pip:
 
    ```bash
-   pip install pyqt
+   pip install PyQt5
    ```
-4. Run the ```client.py``` file.
+4. Run the ```client.py``` file using python. You can do this by running:
+   
+   ```bash
+   python client.py
+   ```
 
 ### Option 2: Download the Executable
 1. Download the executable from the GitHub repository.
